@@ -1,8 +1,7 @@
 #include "adc.h"
 #include "debug.h"
 #include "main.h"
-#include "rfm12b.h"
-#include "rfm_net.h"
+#include "trx.h"
 
 extern ADC_HandleTypeDef hadc1;
 extern DMA_HandleTypeDef hdma_adc1;
@@ -10,62 +9,34 @@ extern DMA_HandleTypeDef hdma_adc1;
 extern CRC_HandleTypeDef hcrc;
 extern RNG_HandleTypeDef hrng;
 
-extern UART_HandleTypeDef huart1;
-
 extern uint32_t rx_cnt;
 
 #warning "Add WDT"
 
-uint8_t KEY[] = "ABCDABCDABCDABCD";
-char payload[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890~!@#$%^&*(){}[]`|<>?+=:;,.";
-
 
 void init(void)
 {
-    __HAL_UART_ENABLE(&huart1);
-
+    debug_init();
     adc_init();
 
-    rfm12b_init(RFM_NET_GATEWAY, RFM_NET_ID_CTRL);
-    rfm12b_encrypt(KEY, 16);
-    rfm12b_sleep();
-}
-
-uint8_t buff[200];
-
-// wait a few milliseconds for proper ACK, return true if received
-static bool waitForAck(uint8_t dest_node_id)
-{
-    uint32_t now = HAL_GetTick();
-    while(HAL_GetTick() - now <= 50 /* ms */)
-        if(rfm12b_is_ack_received(dest_node_id))
-            return true;
-    return false;
+    trx_init();
 }
 
 void loop(void)
 {
     static uint32_t prev_tick = 0;
 
-    static uint8_t prev_sts = 0xff;
-    uint8_t stsx = 0; //rfm12b_trx_1b(0);
-    if(stsx != prev_sts)
-    {
-        prev_sts = stsx;
-        // debug("STS Change: %d @%d\n", prev_sts, HAL_GetTick());
-    }
-
     if(prev_tick < HAL_GetTick())
     {
         prev_tick = HAL_GetTick() + 500;
         LED0_GPIO_Port->ODR ^= LED0_Pin;
         LED1_GPIO_Port->ODR ^= LED1_Pin;
-        //     LED2_GPIO_Port->ODR ^= LED2_Pin;
-        //     LED3_GPIO_Port->ODR ^= LED3_Pin;
-        //     LED4_GPIO_Port->ODR ^= LED4_Pin;
-        //     LED5_GPIO_Port->ODR ^= LED5_Pin;
-        //     LED6_GPIO_Port->ODR ^= LED6_Pin;
-        //     LED7_GPIO_Port->ODR ^= LED7_Pin;
+        LED2_GPIO_Port->ODR ^= LED2_Pin;
+        LED3_GPIO_Port->ODR ^= LED3_Pin;
+        LED4_GPIO_Port->ODR ^= LED4_Pin;
+        LED5_GPIO_Port->ODR ^= LED5_Pin;
+        LED6_GPIO_Port->ODR ^= LED6_Pin;
+        LED7_GPIO_Port->ODR ^= LED7_Pin;
         static uint32_t cnt = 0;
         // debug(">>> %d\n", cnt++);
         if(0)
@@ -79,51 +50,45 @@ void loop(void)
 
             request_ack = !(sendSize % 3); //request ACK every 3rd xmission
 
-            rfm12b_wakeup();
-
-            uint8_t dest_node_id = RFM_NET_ID_HEAD;
-
-            rfm12b_send(dest_node_id, payload, sendSize + 1, request_ack, true);
-
-            if(request_ack)
-            {
-                debug(" - waiting for ACK...");
-                if(waitForAck(dest_node_id))
-                    debug("ok!\n");
-                else
-                    debug("nothing...\n");
-            }
-
-            rfm12b_sleep();
-
-            sendSize = (sendSize + 1) % 88;
-
-            debug("\n");
+            
         }
     }
+    
+    trx_poll_rx();
+    trx_poll_tx_hb(300);
 
-    if(1)
+    static uint32_t ctrl_hb = 0;
+    if(ctrl_hb < HAL_GetTick())
     {
-        if(rfm12b_rx_complete())
+        ctrl_hb = HAL_GetTick() + 1500;
+
+        uint8_t r=200, g=0, b=0;
+        uint8_t data[] = {RFM_NET_CMD_LIGHT, r,g,b};
+        bool sts = trx_send_ack(RFM_NET_ID_HEAD, data, sizeof(data));
+        debug("Send Light cmd: %d\n", sts?1:0);
+    }
+}
+
+void process_data(uint8_t sender_node_id, const volatile uint8_t *data, uint8_t data_len)
+{
+    // debug("RX: %d > Size: %d | %d %d %d %d\n", sender_node_id, data_len, *(data-4), *(data-3),*(data-2),*(data-1));
+    if(data_len > 0)
+    {
+        switch(data[0])
         {
-            if(rfm12b_is_crc_pass())
-            {
-                debug("[%d] Size: %d\n", rfm12b_get_sender(), rfm12b_get_data_len());
-                // for(uint32_t i = 0; i < rfm12b_get_data_len(); i++) //can also use radio.GetDataLen() if you don't like pointers
-                //     debug(" > %c\n", (char)rfm12b_get_data()[i]);
+            case RFM_NET_CMD_DEBUG:
+            debug("# ");
+            for(uint8_t i=1; i<data_len;i++) debug("%c", data[i]);
+            if(data[data_len-1] != '\n')debug("\n");
+            break;
 
-                if(rfm12b_is_ack_requested())
-                {
-                    rfm12b_sendACK("", 0, false);
-                    debug(" - ACK sent\n");
-                }
-            }
-            else
-                debug("BAD-CRC\n");
+            case RFM_NET_CMD_HB:
+            debug("HB %d\n", sender_node_id);
+            break;
 
-            debug("\n");
+            default:
+            debug("Unknown cmd %d\n", data[0]);
+            break;
         }
     }
-
-    // rx();
 }

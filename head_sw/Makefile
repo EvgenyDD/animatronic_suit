@@ -180,6 +180,7 @@ SOURCES += base/Src/stm32f4xx_hal_msp.c
 
 SOURCES += $(wildcard src/*.c)
 SOURCES += $(wildcard ../lib/rfm12b/*.c)
+SOURCES += $(wildcard ../lib/*.c)
 
 #
 #Linker scripts

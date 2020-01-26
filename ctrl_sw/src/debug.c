@@ -20,6 +20,12 @@ int buffer_rx_cnt = 0;
 void debug_parse(char *s);
 
 static volatile bool is_tx = false;
+
+void debug_init(void)
+{
+    __HAL_UART_ENABLE(&huart1);
+}
+
 void debug(char *format, ...)
 {
     if(is_tx) return;
@@ -50,8 +56,4 @@ void debug_rx(char x)
         buffer_rx[buffer_rx_cnt] = x;
         buffer_rx_cnt++;
     }
-}
-
-void debug_poll(void)
-{
 }

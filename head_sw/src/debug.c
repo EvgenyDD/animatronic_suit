@@ -2,6 +2,7 @@
 #include "main.h"
 
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -16,10 +17,20 @@ uint32_t rx_cnt = 0;
 char buffer_rx[CON_IN_BUF_SZ];
 int buffer_rx_cnt = 0;
 
+static volatile bool is_tx = false;
+
 void debug_parse(char *s);
+
+void debug_init(void)
+{
+    __HAL_UART_ENABLE(&huart3);
+}
 
 void debug(char *format, ...)
 {
+    if(is_tx) return;
+    is_tx = true;
+
     static char buffer[CON_OUT_BUF_SZ + 1];
     va_list ap;
 
@@ -28,6 +39,8 @@ void debug(char *format, ...)
     va_end(ap);
 
     HAL_UART_Transmit(&huart3, buffer, strlen(buffer), 200);
+
+    is_tx = false;
 }
 
 void debug_rx(char x)
@@ -44,8 +57,4 @@ void debug_rx(char x)
         buffer_rx[buffer_rx_cnt] = x;
         buffer_rx_cnt++;
     }
-}
-
-void debug_poll(void)
-{
 }

@@ -1,8 +1,7 @@
 #include "adc.h"
 #include "debug.h"
 #include "main.h"
-#include "rfm12b.h"
-#include "rfm_net.h"
+#include "trx.h"
 
 extern ADC_HandleTypeDef hadc1;
 extern DMA_HandleTypeDef hdma_adc1;
@@ -21,19 +20,6 @@ extern RNG_HandleTypeDef hrng;
 extern uint32_t rx_cnt;
 
 #warning "Add WDT"
-
-uint8_t KEY[] = "ABCDABCDABCDABCD";
-char payload[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890~!@#$%^&*(){}[]`|<>?+=:;,.";
-
-// wait a few milliseconds for proper ACK, return true if received
-static bool waitForAck(uint8_t dest_node_id)
-{
-    uint32_t now = HAL_GetTick();
-    while(HAL_GetTick() - now <= 50 /* ms */)
-        if(rfm12b_is_ack_received(dest_node_id))
-            return true;
-    return false;
-}
 
 void init(void)
 {
@@ -65,9 +51,7 @@ void init(void)
 
     PWR_EN_GPIO_Port->ODR |= PWR_EN_Pin;
 
-    rfm12b_init(RFM_NET_GATEWAY, RFM_NET_ID_HEAD);
-    rfm12b_encrypt(KEY, 16);
-    rfm12b_sleep();
+    trx_init();
 }
 
 void loop(void)
@@ -76,65 +60,25 @@ void loop(void)
     if(prev_tick < HAL_GetTick())
     {
         prev_tick = HAL_GetTick() + 500;
-        LED_GPIO_Port->ODR ^= LED_Pin;
-
-        if(1)
-        {
-            static uint8_t sendSize = 0;
-            static bool request_ack = false;
-
-            debug("Sending[%d]\n", sendSize + 1);
-            // for(uint32_t i = 0; i < sendSize + 1U; i++)
-            //     debug(" > %c\n", (char)payload[i]);
-
-            request_ack = !(sendSize % 3); //request ACK every 3rd xmission
-
-            rfm12b_wakeup();
-
-            uint8_t dest_node_id = RFM_NET_ID_CTRL;
-
-            rfm12b_send(dest_node_id, payload, sendSize + 1, request_ack, true);
-
-            if(request_ack)
-            {
-                debug(" - waiting for ACK...");
-                if(waitForAck(dest_node_id))
-                    debug("ok!\n");
-                else
-                    debug("nothing...\n");
-            }
-
-            rfm12b_sleep();
-
-            sendSize = (sendSize + 1) % 88;
-
-            debug("\n");
-        }
-        if(0)
-        {
-            if(rfm12b_rx_complete())
-            {
-                if(rfm12b_is_crc_pass())
-                {
-                    debug("[%d]\n", rfm12b_get_sender());
-                    // for(uint32_t i = 0; i < rfm12b_get_data_len(); i++) //can also use radio.GetDataLen() if you don't like pointers
-                    //     debug(" > %c\n", (char)rfm12b_get_data()[i]);
-
-                    if(rfm12b_is_ack_requested())
-                    {
-                        rfm12b_sendACK("", 0, false);
-                        debug(" - ACK sent\n");
-                    }
-                }
-                else
-                    debug("BAD-CRC\n");
-
-                debug("\n");
-            }
-        }
-
-        static float i = 0;
-        // debug("Fuckyou %.2f %d\n", i, rx_cnt);
-        i += 0.5f;
     }
+
+    trx_poll_rx();
+    trx_poll_tx_hb(280);
+
+    static uint32_t ctrl_hb = 5000;
+    if(ctrl_hb < HAL_GetTick())
+    {
+        ctrl_hb = HAL_GetTick() + 500;
+
+        uint8_t data[] = "\x28"
+                         "Hello FUCKing world\n";
+        trx_send_nack(RFM_NET_ID_CTRL, data, sizeof(data));
+
+        LED_GPIO_Port->ODR ^= LED_Pin;
+    }
+}
+
+void process_data(uint8_t sender_node_id, const volatile uint8_t *data, uint8_t data_len)
+{
+    // debug("RX: %d > Size: %d\n", sender_node_id, data_len);
 }

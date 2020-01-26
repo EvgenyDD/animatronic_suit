@@ -346,7 +346,7 @@ void rfm12b_reset(void)
     while(PIN_GET(RFM_IRQ) == 0)
         rfm12b_trx_2b(0);
 
-    DELAY_US(25000);
+    DELAY_US(150000);
 
     __HAL_GPIO_EXTI_CLEAR_IT(RFM_IRQ_Pin);
     HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
@@ -424,6 +424,8 @@ void rfm12b_config(uint8_t sync_pattern)
                   (2 << 5) | /* CLK OUT freq - 1.66 MHz */
                   (0 << 0)   /* Vlb = 2.25 + V * 0.1V */
     );
+
+    DELAY_US(150000);
 }
 
 void rfm12b_init(uint8_t sync_pattern, uint8_t ID)
