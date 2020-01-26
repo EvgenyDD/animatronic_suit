@@ -135,7 +135,7 @@ PPDEFS  += STM32F405xx
 #Include directories
 #
 INCDIR  += src
-INCDIR  += src/rfm12b
+INCDIR  += ../lib/rfm12b
 INCDIR  += base/Inc 
 INCDIR  += base/Drivers/STM32F4xx_HAL_Driver/Inc 
 INCDIR  += base/Drivers/STM32F4xx_HAL_Driver/Inc/Legacy 
@@ -178,7 +178,7 @@ SOURCES += base/Src/stm32f4xx_it.c
 SOURCES += base/Src/stm32f4xx_hal_msp.c
 
 SOURCES += $(wildcard src/*.c)
-SOURCES += $(wildcard src/rfm12b/*.c)
+SOURCES += $(wildcard ../lib/rfm12b/*.c)
 
 #
 #Linker scripts
