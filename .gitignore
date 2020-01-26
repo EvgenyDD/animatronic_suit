@@ -1,0 +1,20 @@
+*/History/*
+*/Project Logs*
+*/Project Outputs*
+*/__Previews/*
+*/build/
+*/Debug/
+.dep/
+.idea
+.settings/
+.vscode/
+.project
+.cproject
+*.map
+*.bin
+*.elf
+*.swp
+*.o
+*.d
+*.log
+logs
