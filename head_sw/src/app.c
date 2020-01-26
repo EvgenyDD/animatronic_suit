@@ -2,15 +2,10 @@
 #include "debug.h"
 #include "main.h"
 #include "rfm12b.h"
+#include "rfm_net.h"
 
 extern ADC_HandleTypeDef hadc1;
 extern DMA_HandleTypeDef hdma_adc1;
-
-extern CRC_HandleTypeDef hcrc;
-
-extern RNG_HandleTypeDef hrng;
-
-extern SPI_HandleTypeDef hspi3;
 
 extern TIM_HandleTypeDef htim1;
 extern TIM_HandleTypeDef htim2;
@@ -20,23 +15,22 @@ extern TIM_HandleTypeDef htim12;
 
 extern UART_HandleTypeDef huart3;
 
+extern CRC_HandleTypeDef hcrc;
+extern RNG_HandleTypeDef hrng;
+
 extern uint32_t rx_cnt;
 
 #warning "Add WDT"
 
 uint8_t KEY[] = "ABCDABCDABCDABCD";
 char payload[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890~!@#$%^&*(){}[]`|<>?+=:;,.";
-#define NETWORKID 0xD4 //the network ID we are on
-#define GATEWAYID 1    //the node ID we're sending to
-#define NODEID 2       //network ID used for this unit
-#define ACK_TIME 50    // # of ms to wait for an ack
 
 // wait a few milliseconds for proper ACK, return true if received
-static bool waitForAck(void)
+static bool waitForAck(uint8_t dest_node_id)
 {
     uint32_t now = HAL_GetTick();
-    while(HAL_GetTick() - now <= ACK_TIME)
-        if(rfm12b_is_ack_received(GATEWAYID))
+    while(HAL_GetTick() - now <= 50 /* ms */)
+        if(rfm12b_is_ack_received(dest_node_id))
             return true;
     return false;
 }
@@ -71,14 +65,9 @@ void init(void)
 
     PWR_EN_GPIO_Port->ODR |= PWR_EN_Pin;
 
-    debug("#0\n");
-
-    rfm12b_init(NETWORKID, NODEID);
-    debug("#1\n");
+    rfm12b_init(RFM_NET_GATEWAY, RFM_NET_ID_HEAD);
     rfm12b_encrypt(KEY, 16);
-
     rfm12b_sleep();
-    debug("#2\n");
 }
 
 void loop(void)
@@ -102,12 +91,14 @@ void loop(void)
 
             rfm12b_wakeup();
 
-            rfm12b_send(GATEWAYID, payload, sendSize + 1, request_ack, true);
+            uint8_t dest_node_id = RFM_NET_ID_CTRL;
+
+            rfm12b_send(dest_node_id, payload, sendSize + 1, request_ack, true);
 
             if(request_ack)
             {
                 debug(" - waiting for ACK...");
-                if(waitForAck())
+                if(waitForAck(dest_node_id))
                     debug("ok!\n");
                 else
                     debug("nothing...\n");

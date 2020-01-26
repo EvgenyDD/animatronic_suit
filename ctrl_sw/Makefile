@@ -135,6 +135,7 @@ PPDEFS  += STM32F405xx
 #Include directories
 #
 INCDIR  += src
+INCDIR  += ../lib
 INCDIR  += ../lib/rfm12b
 INCDIR  += base/Inc 
 INCDIR  += base/Drivers/STM32F4xx_HAL_Driver/Inc 
