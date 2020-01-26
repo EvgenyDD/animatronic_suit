@@ -22,6 +22,8 @@ extern UART_HandleTypeDef huart3;
 
 extern uint32_t rx_cnt;
 
+#warning "Add WDT"
+
 uint8_t KEY[] = "ABCDABCDABCDABCD";
 char payload[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890~!@#$%^&*(){}[]`|<>?+=:;,.";
 #define NETWORKID 0xD4 //the network ID we are on

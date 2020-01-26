@@ -1,3 +1,6 @@
+/**
+ * Source: https://github.com/LowPowerLab/RFM12B
+ **/
 #include "rfm12b.h"
 #include "main.h"
 
@@ -8,7 +11,7 @@
 #define DELAY_US(x)                      \
     for(uint32_t i = 0; i < 12 * x; i++) \
         asm("nop");
-
+#warning "CHECK OVERFLOWS!!!"
 // ===============
 
 #define RFM12B_CMD_RESET 0xFE00
@@ -31,10 +34,10 @@
 
 #define RFM12B_TXREG_WRITE 0xB800
 
-#define RF_RX_FIFO_READ 0xB000
+#define RFM12B_RX_FIFO_READ 0xB000
 
-#define RF_RECEIVER_ON 0x82DD
-#define RF_XMITTER_ON 0x823D
+#define RFM12B_RECEIVER_ON 0x82DD
+#define RFM12B_XMITTER_ON 0x823D
 
 // ===============
 
@@ -56,8 +59,8 @@
 
 #define RFM12B_POWER_OUT_0DB 0
 
-#define RF_LBD_BIT 0x0400
-#define RF_RSSI_BIT 0x0100
+#define RFM12B_LBD_BIT 0x0400
+#define RFM12B_RSSI_BIT 0x0100
 
 #define RF12_HDR_IDMASK 0x7F
 #define RF12_HDR_ACKCTLMASK 0x80
@@ -137,7 +140,6 @@ static uint8_t nodeID = 0;
 
 static volatile bool irq_fired = false;
 
-/*   */
 uint8_t rfm12b_get_sender(void) { return RF12_SOURCEID; }
 bool rfm12b_is_ack_requested(void) { return RF12_WANTS_ACK; }
 uint8_t rfm12b_get_data_len(void) { return rf12_buf[3]; }
@@ -273,12 +275,12 @@ static bool can_send(void)
 {
     // no need to test with interrupts disabled: state TXRECV is only reached
     // outside of ISR and we don't care if rxfill jumps from 0 to 1 here
-    if(rxstate == TXRECV && rxfill == 0 && (rfm12b_trx_1b(0x00) & (RF_RSSI_BIT >> 8)) == 0)
+    if(rxstate == TXRECV && rxfill == 0 && (rfm12b_trx_1b(0x00) & (RFM12B_RSSI_BIT >> 8)) == 0)
     {
         rfm12b_trx_2b(RFM12B_IDLE_MODE); // stop receiver
         //XXX just in case, don't know whether these RF12 reads are needed!
         // rf12_XFER(0x0000); // status register
-        // rf12_XFER(RF_RX_FIFO_READ); // fifo read
+        // rf12_XFER(RFM12B_RX_FIFO_READ); // fifo read
         rxstate = TXIDLE;
         return true;
     }
@@ -300,7 +302,7 @@ static void send_start(uint8_t to_node_id, const void *data, uint8_t data_len, b
     rf12_crc = _crc16_update(rf12_crc, networkID);
     rxstate = TXPRE1;
     irq_fired = false;
-    rfm12b_trx_2b(RF_XMITTER_ON); // bytes will be fed via interrupts
+    rfm12b_trx_2b(RFM12B_XMITTER_ON); // bytes will be fed via interrupts
 
     // wait for packet to actually finish sending
     // go into low power mode, as interrupts are going to come in very soon
@@ -470,7 +472,7 @@ bool rfm12b_rx_complete(void)
         if(networkID != 0)
             rf12_crc = _crc16_update(0xFFFF, networkID);
         rxstate = TXRECV;
-        rfm12b_trx_2b(RF_RECEIVER_ON);
+        rfm12b_trx_2b(RFM12B_RECEIVER_ON);
     }
     return false;
 }
@@ -508,7 +510,7 @@ void rfm12b_irq_handler(void)
 
     if(rxstate == TXRECV)
     {
-        uint8_t in = rfm12b_trx_2b(RF_RX_FIFO_READ); /* note: MAX SPI freq = 2.5MHZ here*/
+        uint8_t in = rfm12b_trx_2b(RFM12B_RX_FIFO_READ); /* note: MAX SPI freq = 2.5MHZ here*/
 
         if(rxfill == 0 && networkID != 0)
             rf12_buf[rxfill++] = networkID;

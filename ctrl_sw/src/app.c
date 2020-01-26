@@ -14,6 +14,8 @@ extern UART_HandleTypeDef huart1;
 
 extern uint32_t rx_cnt;
 
+#warning "Add WDT"
+
 uint8_t KEY[] = "ABCDABCDABCDABCD";
 char payload[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890~!@#$%^&*(){}[]`|<>?+=:;,.";
 #define NETWORKID 0xD4 //the network ID we are on
@@ -100,27 +102,6 @@ void loop(void)
 
             debug("\n");
         }
-
-        int16_t sts = 777;
-        // if((sts = radio_rcv(buff, 200)) > 0) //try to receive some data
-        // {
-        //     // if(buff[0] == 'a' && buff[1] == 'b' && buff[2] == 'c')
-        //     // {
-        //     //     SET(LED_GREEN);            //indicate that the packet is received
-        //     //     _delay_ms(180);            //wait for some (shorter) time
-        //     //     CLEAR(LED_GREEN);        //and turn the LED off
-        //     // }
-        //     debug("FUCK YES!");
-        // }
-        // else
-        {
-            // debug("Fail %d >\n", sts);
-        }
-
-        // rfm_test_tx();
-        //     static float i = 0;
-        //     debug("Fuckyou %.2f %d\n", i, rx_cnt);
-        //     i += 0.5f;
     }
 
     if(1)
