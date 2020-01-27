@@ -207,20 +207,18 @@ static void _crypt_function(bool sending)
 #define MX (((z >> 5 ^ y << 2) + (y >> 3 ^ z << 4)) ^ ((sum ^ y) + (crypt_key[(uint8_t)((p & 3) ^ e)] ^ z)))
 
     uint32_t y, z, sum;
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wcast-align"
+// #pragma GCC diagnostic push
+// #pragma GCC diagnostic ignored "-Wcast-align"
     volatile uint32_t *v = (volatile uint32_t *)rf12_data;
-#pragma GCC diagnostic pop
+// #pragma GCC diagnostic pop
     uint8_t p, e, rounds = 6;
 
     if(sending)
     {
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wcast-align"
-#pragma GCC diagnostic ignored "-Wcast-qual"
-        // pad with 1..4-byte sequence number
-        *(uint32_t *)(rf12_data + rf12_len) = ++seqNum;
-#pragma GCC diagnostic pop
+        ++seqNum;
+        // memcpy(rf12_data + rf12_len, &seqNum, sizeof(seqNum));
+        for(uint8_t i=0; i<sizeof(seqNum);i++)
+        rf12_data[rf12_len + i] = *(((uint8_t*)&seqNum) + i);
         uint8_t pad = 3 - (rf12_len & 3);
         rf12_len += pad;
         rf12_data[rf12_len] &= 0x3F;
@@ -290,10 +288,12 @@ static bool can_send(void)
 static void send_start(uint8_t to_node_id, const void *data, uint8_t data_len, bool request_ack, bool sendACK, bool is_sleep)
 {
     rf12_len = data_len;
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wcast-qual"
-    memcpy((void *)rf12_data, data, data_len);
-#pragma GCC diagnostic pop
+// #pragma GCC diagnostic push
+// #pragma GCC diagnostic ignored "-Wcast-qual"
+    // memcpy((void *)rf12_data, data, data_len);
+    for(uint8_t i=0; i < data_len;i++)
+        *(rf12_data+i) = *(((const uint8_t*)data) + i);
+// #pragma GCC diagnostic pop
 
     rf12_hdr1 = to_node_id | (sendACK ? RF12_HDR_ACKCTLMASK : 0);
     rf12_hdr2 = nodeID | (request_ack ? RF12_HDR_ACKCTLMASK : 0);
@@ -484,7 +484,7 @@ void rfm12b_send(uint8_t to_node_id, const void *data, uint8_t data_len, bool re
     while(!can_send())
         rfm12b_rx_complete();
     send_start(to_node_id, data, data_len, request_ack, false, is_sleep);
-}
+} 
 
 void rfm12b_sendACK(const void *data, uint8_t data_len, bool is_sleep)
 {

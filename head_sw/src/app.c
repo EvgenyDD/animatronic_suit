@@ -1,5 +1,6 @@
 #include "adc.h"
 #include "debug.h"
+#include "hb_tracker.h"
 #include "main.h"
 #include "trx.h"
 
@@ -20,6 +21,8 @@ extern RNG_HandleTypeDef hrng;
 extern uint32_t rx_cnt;
 
 #warning "Add WDT"
+
+hbt_node_t *hbt_ctrl;
 
 void init(void)
 {
@@ -51,7 +54,9 @@ void init(void)
 
     PWR_EN_GPIO_Port->ODR |= PWR_EN_Pin;
 
-    trx_init();
+    hbt_ctrl = hb_tracker_init(RFM_NET_ID_CTRL, 700 /* 2x HB + 100 ms*/);
+
+    trx_init(RFM_NET_ID_HEAD);
 }
 
 void loop(void)
@@ -63,7 +68,7 @@ void loop(void)
     }
 
     trx_poll_rx();
-    trx_poll_tx_hb(280);
+    trx_poll_tx_hb(280, 1, RFM_NET_ID_CTRL);
 
     static uint32_t ctrl_hb = 5000;
     if(ctrl_hb < HAL_GetTick())
@@ -80,5 +85,20 @@ void loop(void)
 
 void process_data(uint8_t sender_node_id, const volatile uint8_t *data, uint8_t data_len)
 {
-    // debug("RX: %d > Size: %d\n", sender_node_id, data_len);
+    // debug("RX: %d > Size: %d\n", sender_node_id, data_len);if(data_len > 0)
+    {
+        switch(data[0])
+        {
+        case RFM_NET_CMD_HB:
+        {
+            bool not_found = hb_tracker_update(sender_node_id);
+            if(not_found) debug("HB unknown %d\n", sender_node_id);
+        }
+        break;
+
+        default:
+            // debug("Unknown cmd %d\n", data[0]);
+            break;
+        }
+    }
 }

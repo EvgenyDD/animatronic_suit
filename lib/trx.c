@@ -2,6 +2,8 @@
 #include "main.h"
 #include "rfm12b.h"
 #include "debug.h"
+#include <stdio.h>
+#include <stdarg.h>
 
 extern void process_data(uint8_t sender_node_id, const volatile uint8_t *data, uint8_t data_len);
 
@@ -23,7 +25,7 @@ static bool waitForAck(uint8_t dest_node_id)
  * @return true ACK not received
  * @return false ACK received
  */
-bool trx_send_ack(uint8_t node_id, uint8_t *payload, uint8_t payload_length)
+static bool _trx_send_ack(uint8_t node_id, uint8_t *payload, uint8_t payload_length)
 {
     // rfm12b_wakeup();
     rfm12b_send(node_id, payload, payload_length, true, true);
@@ -34,15 +36,24 @@ bool trx_send_ack(uint8_t node_id, uint8_t *payload, uint8_t payload_length)
         return true;
 }
 
+bool trx_send_ack(uint8_t node_id, uint8_t *payload, uint8_t payload_length)
+{
+    for(uint32_t i=0; i<3; i++)
+    {
+        if(_trx_send_ack(node_id, payload, payload_length) == false) return false;
+    }
+    return true;
+}
+
 void trx_send_nack(uint8_t node_id, uint8_t *payload, uint8_t payload_length)
 {
     // rfm12b_wakeup();
     rfm12b_send(node_id, payload, payload_length, false, false);
 }
 
-void trx_init(void)
+void trx_init(uint8_t own_id)
 {
-    rfm12b_init(RFM_NET_GATEWAY, RFM_NET_ID_CTRL);
+    rfm12b_init(RFM_NET_GATEWAY, own_id);
     rfm12b_encrypt(rfm_net_key, RFM_NET_KEY_LENGTH);
     // rfm12b_sleep();
 }
@@ -71,7 +82,7 @@ void trx_poll_rx(void)
     }
 }
 
-void trx_poll_tx_hb(uint32_t period_tx_ms)
+void trx_poll_tx_hb(uint32_t period_tx_ms, int nodes_count, ...)
 {
     static uint32_t fire_timestamp = 0;
     if(fire_timestamp < HAL_GetTick())
@@ -81,6 +92,15 @@ void trx_poll_tx_hb(uint32_t period_tx_ms)
         // rfm12b_sleep();
 
         uint8_t hb[] = {RFM_NET_CMD_HB};
-        trx_send_nack(RFM_NET_ID_HEAD, hb, sizeof(hb));
+
+        va_list args;
+        va_start(args, nodes_count);
+        
+        for (int i = 0; i < nodes_count; i++) 
+        {
+            trx_send_nack(va_arg(args, int), hb, sizeof(hb));
+        }
+
+        va_end(args);
     }
 }
