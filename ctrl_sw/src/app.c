@@ -4,6 +4,8 @@
 #include "main.h"
 #include "trx.h"
 
+#include <string.h>
+
 extern ADC_HandleTypeDef hadc1;
 extern DMA_HandleTypeDef hdma_adc1;
 
@@ -15,6 +17,8 @@ extern uint32_t rx_cnt;
 #warning "Add WDT"
 
 hbt_node_t *hbt_head;
+
+bool to_from_head = true;
 
 void init(void)
 {
@@ -34,14 +38,11 @@ void loop(void)
     {
         prev_tick = HAL_GetTick() + 500;
         LED0_GPIO_Port->ODR ^= LED0_Pin;
-        LED1_GPIO_Port->ODR ^= LED1_Pin;
-        LED2_GPIO_Port->ODR ^= LED2_Pin;
-        LED3_GPIO_Port->ODR ^= LED3_Pin;
-        LED4_GPIO_Port->ODR ^= LED4_Pin;
-        LED5_GPIO_Port->ODR ^= LED5_Pin;
-        LED6_GPIO_Port->ODR ^= LED6_Pin;
-
-
+        // LED1_GPIO_Port->ODR ^= LED1_Pin;
+        // LED2_GPIO_Port->ODR ^= LED2_Pin;
+        // LED3_GPIO_Port->ODR ^= LED3_Pin;
+        // LED4_GPIO_Port->ODR ^= LED4_Pin;
+        // LED5_GPIO_Port->ODR ^= LED5_Pin;
 
         static uint32_t cnt = 0;
         // debug(">>> %d\n", cnt++);
@@ -59,17 +60,31 @@ void loop(void)
     }
 
     trx_poll_rx();
-    trx_poll_tx_hb(300, 1, RFM_NET_ID_HEAD);
+    trx_poll_tx_hb(300, hb_tracker_is_timeout(hbt_head), 1, RFM_NET_ID_HEAD);
 
-        static uint32_t prev_ticke = 0;
+    static uint32_t prev_ticke = 0;
 
     if(prev_ticke < HAL_GetTick())
     {
         prev_ticke = HAL_GetTick() + 100;
 
-            if(hb_tracker_is_timeout(hbt_head))
-        {LED7_GPIO_Port->ODR |= LED7_Pin;}
-        else{ LED7_GPIO_Port->ODR ^= LED7_Pin;}
+        if(hb_tracker_is_timeout(hbt_head))
+        {
+            LED7_GPIO_Port->ODR |= LED7_Pin;
+        }
+        else
+        {
+            LED7_GPIO_Port->ODR ^= LED7_Pin;
+        }
+
+        if(to_from_head)
+        {
+            LED6_GPIO_Port->ODR |= LED6_Pin;
+        }
+        else
+        {
+            LED6_GPIO_Port->ODR ^= LED6_Pin;
+        }
     }
 
     static uint32_t ctrl_hb = 0;
@@ -101,10 +116,26 @@ void process_data(uint8_t sender_node_id, const volatile uint8_t *data, uint8_t 
             break;
 
         case RFM_NET_CMD_HB:
-        {            
+        {
             bool not_found = hb_tracker_update(sender_node_id);
             if(not_found) debug("HB unknown %d\n", sender_node_id);
+            if(sender_node_id == RFM_NET_ID_HEAD)
+            {
+                to_from_head = data[1];
+            }
         }
+        break;
+
+        case RFM_NET_CMD_STS_HEAD:
+            if(data_len == 1 + 4 + 4)
+            {
+                float vbat, temp;
+                memcpy(&vbat, (const void *)(data + 1), 4);
+                memcpy(&temp, (const void *)(data + 1 + 4), 4);
+                debug("HD STS: v %.2f | t %.1f\n", vbat, temp);
+            }
+            else
+                debug("Wrong size RFM_NET_CMD_STS_HEAD %d", data_len);
             break;
 
         default:

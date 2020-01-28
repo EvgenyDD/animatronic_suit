@@ -82,7 +82,7 @@ void trx_poll_rx(void)
     }
 }
 
-void trx_poll_tx_hb(uint32_t period_tx_ms, int nodes_count, ...)
+void trx_poll_tx_hb(uint32_t period_tx_ms, bool nodes_timeout, int nodes_count, ...)
 {
     static uint32_t fire_timestamp = 0;
     if(fire_timestamp < HAL_GetTick())
@@ -91,7 +91,7 @@ void trx_poll_tx_hb(uint32_t period_tx_ms, int nodes_count, ...)
 
         // rfm12b_sleep();
 
-        uint8_t hb[] = {RFM_NET_CMD_HB};
+        uint8_t hb[] = {RFM_NET_CMD_HB, nodes_timeout ? 1 : 0};
 
         va_list args;
         va_start(args, nodes_count);

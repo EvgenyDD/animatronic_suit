@@ -8,6 +8,9 @@ void adc_print(void);
 
 uint16_t adc_get_raw(uint32_t channel);
 
+float adc_logic_get_temp(void);
+float adc_logic_get_vbat(void);
+
 void adc_drv_conv_complete_half(void);
 void adc_drv_conv_complete_full(void);
 

@@ -15,6 +15,8 @@ enum RFM_NET_PROTOCOL
     RFM_NET_CMD_HB = 0,
     RFM_NET_CMD_LIGHT = 1,
 
+    RFM_NET_CMD_STS_HEAD = 10,
+
     RFM_NET_CMD_DEBUG = 40,
 };
 

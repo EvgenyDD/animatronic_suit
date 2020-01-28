@@ -12,7 +12,7 @@ hbt_node_t *hb_tracker_init(uint8_t node_id, uint32_t timeout_ms)
 
     nodes[nodes_count].node_id = node_id;
     nodes[nodes_count].timeout_ms = timeout_ms;
-    nodes[nodes_count].last_hb_ms = HAL_GetTick();
+    nodes[nodes_count].last_hb_ms = 0;
 
     nodes_count++;
 

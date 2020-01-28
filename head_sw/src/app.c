@@ -4,6 +4,8 @@
 #include "main.h"
 #include "trx.h"
 
+#include <string.h>
+
 extern ADC_HandleTypeDef hadc1;
 extern DMA_HandleTypeDef hdma_adc1;
 
@@ -68,7 +70,7 @@ void loop(void)
     }
 
     trx_poll_rx();
-    trx_poll_tx_hb(280, 1, RFM_NET_ID_CTRL);
+    trx_poll_tx_hb(280, hb_tracker_is_timeout(hbt_ctrl), 1, RFM_NET_ID_CTRL);
 
     static uint32_t ctrl_hb = 5000;
     if(ctrl_hb < HAL_GetTick())
@@ -79,7 +81,35 @@ void loop(void)
                          "Hello FUCKing world\n";
         trx_send_nack(RFM_NET_ID_CTRL, data, sizeof(data));
 
-        LED_GPIO_Port->ODR ^= LED_Pin;
+        // LED_GPIO_Port->ODR ^= LED_Pin;
+    }
+
+    static uint32_t hbtt = 0;
+    if(hbtt < HAL_GetTick())
+    {
+        hbtt = HAL_GetTick() + 100;
+
+        if(hb_tracker_is_timeout(hbt_ctrl))
+        {
+            LED_GPIO_Port->ODR |= LED_Pin;
+        }
+        else
+        {
+            LED_GPIO_Port->ODR ^= LED_Pin;
+        }
+    }
+
+    static uint32_t ctr_sts_head = 0;
+    if(ctr_sts_head < HAL_GetTick())
+    {
+        ctr_sts_head = HAL_GetTick() + 2000;
+
+        uint8_t data[1 + 4 + 4] = {RFM_NET_CMD_STS_HEAD};
+        float vbat = adc_logic_get_vbat();
+        float temp = adc_logic_get_temp();
+        memcpy(data + 1, &vbat, 4);
+        memcpy(data + 1 + 4, &temp, 4);
+        trx_send_nack(RFM_NET_ID_CTRL, data, sizeof(data));
     }
 }
 

@@ -3,6 +3,7 @@
  **/
 #include "rfm12b.h"
 #include "main.h"
+#include "debug.h"
 
 #include <string.h>
 
@@ -130,7 +131,8 @@ enum
 static void (*crypter)(bool) = NULL;
 static uint32_t crypt_key[4] = {0}; // encryption key to use
 static volatile uint16_t rf12_crc = 0;
-static volatile uint8_t rf12_buf[RF_MAX] = {0};
+static volatile uint32_t rf12_buf_u32[RF_MAX/sizeof(uint32_t)] = {0};
+static volatile uint8_t *rf12_buf = (volatile uint8_t*)rf12_buf_u32;
 static long rf12_seq = 0;
 static uint32_t seqNum = 0;
 static volatile int8_t rxstate = TXIDLE;
@@ -149,7 +151,7 @@ bool rfm12b_is_crc_pass(void) { return rf12_crc == 0; }
 static uint8_t rfm12b_trx_1b(uint8_t byte)
 {
     uint8_t rx;
-
+__disable_irq();
     PIN_CLR(RFM_CS);
     DELAY_US(1);
 
@@ -162,13 +164,14 @@ static uint8_t rfm12b_trx_1b(uint8_t byte)
     PIN_SET(RFM_CS);
     DELAY_US(1);
 
+__enable_irq();
     return rx;
 }
 
 static uint16_t rfm12b_trx_2b(uint16_t word)
 {
     uint8_t rx[2];
-
+__disable_irq();
     PIN_CLR(RFM_CS);
     DELAY_US(1);
 
@@ -183,7 +186,7 @@ static uint16_t rfm12b_trx_2b(uint16_t word)
 
     PIN_SET(RFM_CS);
     DELAY_US(1);
-
+__enable_irq();
     return (rx[0] << 8) | rx[1];
 }
 
@@ -209,7 +212,7 @@ static void _crypt_function(bool sending)
     uint32_t y, z, sum;
 // #pragma GCC diagnostic push
 // #pragma GCC diagnostic ignored "-Wcast-align"
-    volatile uint32_t *v = (volatile uint32_t *)rf12_data;
+    volatile uint32_t *v = &rf12_buf_u32[1];
 // #pragma GCC diagnostic pop
     uint8_t p, e, rounds = 6;
 
@@ -310,8 +313,16 @@ static void send_start(uint8_t to_node_id, const void *data, uint8_t data_len, b
     {
         if(is_sleep)
         {
+            uint32_t to = HAL_GetTick()+ 500;
             while(irq_fired == false)
+            {
                 asm("nop");
+                if(to <  HAL_GetTick())
+                {
+                    debug("STUCK @0");
+                    to = HAL_GetTick() + 500;
+                }
+            }
         }
     }
 }
@@ -481,15 +492,35 @@ bool rfm12b_rx_complete(void)
 
 void rfm12b_send(uint8_t to_node_id, const void *data, uint8_t data_len, bool request_ack, bool is_sleep)
 {
+    uint32_t to = HAL_GetTick()+ 500;
+    
     while(!can_send())
+    {
         rfm12b_rx_complete();
+        if(to <  HAL_GetTick())
+        {
+            debug("Stuck @1");
+            to = HAL_GetTick() + 500; 
+        }
+    }
+
     send_start(to_node_id, data, data_len, request_ack, false, is_sleep);
 } 
 
 void rfm12b_sendACK(const void *data, uint8_t data_len, bool is_sleep)
 {
+    uint32_t to = HAL_GetTick()+ 500;
+    
     while(!can_send())
+    {
         rfm12b_rx_complete();
+        if(to <  HAL_GetTick())
+        {
+            debug("Stuck @2");
+            to = HAL_GetTick() + 500; 
+        }
+    }
+
     send_start(RF12_SOURCEID, data, data_len, false, true, is_sleep);
 }
 
