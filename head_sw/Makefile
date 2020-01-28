@@ -130,6 +130,7 @@ EXT_LIBS +=nosys
 #
 PPDEFS  += USE_HAL_DRIVER 
 PPDEFS  += STM32F405xx
+PPDEFS  += VECT_TAB_OFFSET=0x20000
 
 #
 #Include directories
@@ -174,7 +175,7 @@ SOURCES += base/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_tim_ex.c
 SOURCES += base/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_uart.c 
 
 SOURCES += base/Src/main.c
-SOURCES += base/Src/system_stm32f4xx.c
+#SOURCES += base/Src/system_stm32f4xx.c
 SOURCES += base/Src/stm32f4xx_it.c
 SOURCES += base/Src/stm32f4xx_hal_msp.c
 

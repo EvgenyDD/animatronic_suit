@@ -1,7 +1,7 @@
 #
 #Executable name
 #
-EXE_NAME=head
+EXE_NAME=boot
 
 #
 #Folder to place compiled objects
@@ -70,7 +70,7 @@ CXXDIALECT = c++0x
 #
 #Optimization
 #
-OPT_LVL = 3
+OPT_LVL = s
 
 #
 #Debug information options
@@ -107,9 +107,9 @@ CXXFLAGS += -fsingle-precision-constant
 #Additional linker flags
 #
 # LDFLAGS  += -nostartfiles
-LDFLAGS  += -specs=nano.specs
+# LDFLAGS  += -specs=nano.specs
 LDFLAGS  += -Wl,--gc-sections
-LDFLAGS  += -u _printf_float
+# LDFLAGS  += -u _printf_float
 # LDFLAGS  += -u _scanf_float
 LDFLAGS  += -Wl,--print-memory-usage
 
@@ -121,8 +121,8 @@ LDFLAGS  += -Wl,--print-memory-usage
 #
 #Additional static libraries
 #
-EXT_LIBS +=c
-EXT_LIBS +=m
+# EXT_LIBS +=c
+# EXT_LIBS +=m
 EXT_LIBS +=nosys
 
 #
@@ -130,14 +130,12 @@ EXT_LIBS +=nosys
 #
 PPDEFS  += USE_HAL_DRIVER 
 PPDEFS  += STM32F405xx
-PPDEFS  += VECT_TAB_OFFSET=0x20000
 
 #
 #Include directories
 #
+INCDIR  += ../../lib
 INCDIR  += src
-INCDIR  += ../lib
-INCDIR  += ../lib/rfm12b
 INCDIR  += base/Inc 
 INCDIR  += base/Drivers/STM32F4xx_HAL_Driver/Inc 
 INCDIR  += base/Drivers/STM32F4xx_HAL_Driver/Inc/Legacy 
@@ -154,7 +152,6 @@ INCDIR  += base/Drivers/CMSIS/Include
 SOURCES += base/startup_stm32f405xx.s
 
 SOURCES += base/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal.c 
-SOURCES += base/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_adc.c 
 SOURCES += base/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_cortex.c 
 SOURCES += base/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_crc.c 
 SOURCES += base/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_dma.c 
@@ -166,22 +163,17 @@ SOURCES += base/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_flash_ex.c
 SOURCES += base/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_gpio.c 
 SOURCES += base/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_pwr.c 
 SOURCES += base/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_pwr_ex.c 
-SOURCES += base/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_spi.c 
 SOURCES += base/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rcc.c 
 SOURCES += base/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rcc_ex.c 
-SOURCES += base/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rng.c 
 SOURCES += base/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_tim.c 
 SOURCES += base/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_tim_ex.c 
-SOURCES += base/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_uart.c 
 
 SOURCES += base/Src/main.c
-#SOURCES += base/Src/system_stm32f4xx.c
+SOURCES += base/Src/system_stm32f4xx.c
 SOURCES += base/Src/stm32f4xx_it.c
 SOURCES += base/Src/stm32f4xx_hal_msp.c
 
 SOURCES += $(wildcard src/*.c)
-SOURCES += $(wildcard ../lib/rfm12b/*.c)
-SOURCES += $(wildcard ../lib/*.c)
 
 #
 #Linker scripts
