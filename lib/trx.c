@@ -10,7 +10,7 @@ extern void process_data(uint8_t sender_node_id, const volatile uint8_t *data, u
 static bool waitForAck(uint8_t dest_node_id)
 {
     uint32_t now = HAL_GetTick();
-    while(HAL_GetTick() - now <= 50 /* ms */)
+    while(HAL_GetTick() - now <= 20 /* ms */)
         if(rfm12b_is_ack_received(dest_node_id))
             return true;
     return false;
@@ -38,9 +38,10 @@ static bool _trx_send_ack(uint8_t node_id, uint8_t *payload, uint8_t payload_len
 
 bool trx_send_ack(uint8_t node_id, uint8_t *payload, uint8_t payload_length)
 {
-    for(uint32_t i=0; i<3; i++)
+    for(uint32_t i=0; i<5; i++)
     {
         if(_trx_send_ack(node_id, payload, payload_length) == false) return false;
+        trx_poll_rx();
     }
     return true;
 }
@@ -64,6 +65,10 @@ void trx_poll_rx(void)
     {
         if(rfm12b_is_crc_pass())
         {
+            __disable_irq();
+            process_data(rfm12b_get_sender(), rfm12b_get_data(), rfm12b_get_data_len());
+            __enable_irq();
+
             if(rfm12b_is_ack_requested())
             {
                 rfm12b_sendACK("", 0, false);
@@ -73,7 +78,6 @@ void trx_poll_rx(void)
             // debug("[%d] Size: %d\n", rfm12b_get_sender(), rfm12b_get_data_len());
             // for(uint32_t i = 0; i < rfm12b_get_data_len(); i++) //can also use radio.GetDataLen() if you don't like pointers
             //     debug(" > %c\n", (char)rfm12b_get_data()[i]);
-            process_data(rfm12b_get_sender(), rfm12b_get_data(), rfm12b_get_data_len());
         }
         else
             debug("BAD-CRC\n");

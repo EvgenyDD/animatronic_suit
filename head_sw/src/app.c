@@ -1,6 +1,7 @@
 #include "adc.h"
 #include "debug.h"
 #include "hb_tracker.h"
+#include "led.h"
 #include "main.h"
 #include "trx.h"
 
@@ -76,12 +77,6 @@ void loop(void)
     if(ctrl_hb < HAL_GetTick())
     {
         ctrl_hb = HAL_GetTick() + 500;
-
-        uint8_t data[] = "\x28"
-                         "Hello FUCKing world\n";
-        trx_send_nack(RFM_NET_ID_CTRL, data, sizeof(data));
-
-        // LED_GPIO_Port->ODR ^= LED_Pin;
     }
 
     static uint32_t hbtt = 0;
@@ -109,7 +104,8 @@ void loop(void)
         float temp = adc_logic_get_temp();
         memcpy(data + 1, &vbat, 4);
         memcpy(data + 1 + 4, &temp, 4);
-        trx_send_nack(RFM_NET_ID_CTRL, data, sizeof(data));
+        trx_send_ack(RFM_NET_ID_CTRL, data, sizeof(data));
+        // debug_rf("*");
     }
 }
 
@@ -121,10 +117,23 @@ void process_data(uint8_t sender_node_id, const volatile uint8_t *data, uint8_t 
         {
         case RFM_NET_CMD_HB:
         {
-            bool not_found = hb_tracker_update(sender_node_id);
-            if(not_found) debug("HB unknown %d\n", sender_node_id);
+            if(data_len == 2)
+            {
+                bool not_found = hb_tracker_update(sender_node_id);
+                // if(not_found) debug("HB unknown %d\n", sender_node_id);
+            }
         }
         break;
+
+        case RFM_NET_CMD_LIGHT:
+        {
+            if(data_len == 4)
+            {
+                led_set_gamma(0, data[1]);
+                led_set_gamma(1, data[2]);
+                led_set_gamma(2, data[3]);
+            }
+        }
 
         default:
             // debug("Unknown cmd %d\n", data[0]);

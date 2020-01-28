@@ -1,5 +1,6 @@
 #include "debug.h"
 #include "main.h"
+#include "trx.h"
 
 #include <stdarg.h>
 #include <stdbool.h>
@@ -39,6 +40,23 @@ void debug(char *format, ...)
     va_end(ap);
 
     HAL_UART_Transmit(&huart3, buffer, strlen(buffer), 200);
+
+    is_tx = false;
+}
+
+void debug_rf(char *format, ...)
+{
+    if(is_tx) return;
+    is_tx = true;
+
+    static char buffer[60 + 1] = "\x28";
+    va_list ap;
+
+    va_start(ap, format);
+    vsnprintf(buffer+1, sizeof(buffer)-1, format, ap);
+    va_end(ap);
+
+    trx_send_nack(RFM_NET_ID_CTRL, buffer, strlen(buffer));
 
     is_tx = false;
 }

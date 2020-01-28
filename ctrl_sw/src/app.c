@@ -90,14 +90,29 @@ void loop(void)
     static uint32_t ctrl_hb = 0;
     if(ctrl_hb < HAL_GetTick())
     {
-        ctrl_hb = HAL_GetTick() + 1500;
+        ctrl_hb = HAL_GetTick() + 200;
 
-        uint8_t r = 200, g = 0, b = 0;
-        uint8_t data[] = {RFM_NET_CMD_LIGHT, r, g, b};
+        uint8_t r = 0, g = 200, b = 0;
+        uint8_t data[4] = {RFM_NET_CMD_LIGHT, 0,0,0};
+        static uint8_t ptr=1;
+        ptr++;
+        if(ptr >= 4) ptr = 1;
+        data[ptr] = 200;
         bool sts = trx_send_ack(RFM_NET_ID_HEAD, data, sizeof(data));
+
         static uint32_t fail_cnt = 0;
         if(sts) fail_cnt++;
-        debug("Send Light %d fc %d\n", sts ? 1 : 0, fail_cnt);
+        if(sts)
+            debug("Send Light %d fc %d\n", sts ? 1 : 0, fail_cnt);
+    }
+}
+
+
+static void memcpy_volatile(void *src, const volatile void* dst, size_t size)
+{
+    for(uint32_t i=0; i<size; i++)
+    {
+        *((uint8_t*)src + i) = *((const volatile uint8_t*)dst + i);
     }
 }
 
@@ -117,11 +132,14 @@ void process_data(uint8_t sender_node_id, const volatile uint8_t *data, uint8_t 
 
         case RFM_NET_CMD_HB:
         {
-            bool not_found = hb_tracker_update(sender_node_id);
-            if(not_found) debug("HB unknown %d\n", sender_node_id);
-            if(sender_node_id == RFM_NET_ID_HEAD)
-            {
-                to_from_head = data[1];
+            if(data_len==2)
+            {   
+                bool not_found = hb_tracker_update(sender_node_id);
+                if(not_found) debug("HB unknown %d\n", sender_node_id);
+                if(sender_node_id == RFM_NET_ID_HEAD)
+                {
+                    to_from_head = data[1];
+                }
             }
         }
         break;
@@ -130,8 +148,8 @@ void process_data(uint8_t sender_node_id, const volatile uint8_t *data, uint8_t 
             if(data_len == 1 + 4 + 4)
             {
                 float vbat, temp;
-                memcpy(&vbat, (const void *)(data + 1), 4);
-                memcpy(&temp, (const void *)(data + 1 + 4), 4);
+                memcpy_volatile(&vbat, (data + 1), 4);
+                memcpy_volatile(&temp, (data + 1 + 4), 4);
                 debug("HD STS: v %.2f | t %.1f\n", vbat, temp);
             }
             else

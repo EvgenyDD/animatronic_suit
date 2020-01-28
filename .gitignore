@@ -15,6 +15,7 @@
 *.elf
 *.swp
 *.o
+*.lst
 *.d
 *.log
 logs
