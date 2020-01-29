@@ -1,5 +1,7 @@
 #include "debug.h"
 #include "main.h"
+#include "usbd_cdc_if.h"
+#include "serial_suit_protocol.h"
 
 #include <stdarg.h>
 #include <stdio.h>
@@ -8,6 +10,7 @@
 #include <stdbool.h>
 
 extern UART_HandleTypeDef huart1;
+extern USBD_HandleTypeDef hUsbDeviceFS;
 
 uint32_t rx_cnt = 0;
 
@@ -34,11 +37,24 @@ void debug(char *format, ...)
     static char buffer[CON_OUT_BUF_SZ + 1];
     va_list ap;
 
-    va_start(ap, format);
+
+
+    if(hUsbDeviceFS.dev_state == USBD_STATE_CONFIGURED)
+    {
+            va_start(ap, format);
+    vsnprintf(buffer+1, CON_OUT_BUF_SZ-1, format, ap);
+    va_end(ap);
+    buffer[0] = SSP_CMD_DEBUG;
+        CDC_Transmit_FS(buffer, strlen(buffer));
+    }
+    else
+    { 
+            va_start(ap, format);
     vsnprintf(buffer, CON_OUT_BUF_SZ, format, ap);
     va_end(ap);
+        HAL_UART_Transmit(&huart1, buffer, strlen(buffer), 200);
+    }
 
-    HAL_UART_Transmit(&huart1, buffer, strlen(buffer), 200);
     is_tx = false;
 }
 

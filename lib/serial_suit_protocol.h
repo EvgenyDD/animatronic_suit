@@ -1,0 +1,9 @@
+#ifndef SERIAL_SUIT_PROTOCOL_H
+#define SERIAL_SUIT_PROTOCOL_H
+
+enum
+{
+  SSP_CMD_DEBUG = 03,
+};
+
+#endif // SERIAL_SUIT_PROTOCOL_H

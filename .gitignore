@@ -4,7 +4,14 @@
 */__Previews/*
 */build/*
 build/*
+*/build-*
 */Debug/
+*.Debug
+*.Release
+ui_*
+ui/Makefile
+*.user
+.qmake*
 .dep/
 .idea
 .settings/
