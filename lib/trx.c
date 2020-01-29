@@ -1,11 +1,23 @@
 #include "trx.h"
+#include "debug.h"
 #include "main.h"
 #include "rfm12b.h"
-#include "debug.h"
-#include <stdio.h>
 #include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
 
 extern void process_data(uint8_t sender_node_id, const volatile uint8_t *data, uint8_t data_len);
+
+typedef struct
+{
+    uint8_t data[MSG_COUNT][RF12_MAXDATA];
+    uint32_t p_push[MSG_COUNT];
+    uint32_t p_pull[MSG_COUNT];
+    uint8_t tx_storage_len[MSG_COUNT];
+    uint8_t dest_id;
+} storage_t;
+
+static storage_t storage[NODES_COUNT];
 
 static bool waitForAck(uint8_t dest_node_id)
 {
@@ -38,7 +50,7 @@ static bool _trx_send_ack(uint8_t node_id, uint8_t *payload, uint8_t payload_len
 
 bool trx_send_ack(uint8_t node_id, uint8_t *payload, uint8_t payload_length)
 {
-    for(uint32_t i=0; i<5; i++)
+    for(uint32_t i = 0; i < 5; i++)
     {
         if(_trx_send_ack(node_id, payload, payload_length) == false) return false;
         trx_poll_rx();
@@ -54,6 +66,7 @@ void trx_send_nack(uint8_t node_id, uint8_t *payload, uint8_t payload_length)
 
 void trx_init(uint8_t own_id)
 {
+    memset(storage, 0, sizeof(storage));
     rfm12b_init(RFM_NET_GATEWAY, own_id);
     rfm12b_encrypt(rfm_net_key, RFM_NET_KEY_LENGTH);
     // rfm12b_sleep();
@@ -74,7 +87,7 @@ void trx_poll_rx(void)
                 rfm12b_sendACK("", 0, false);
                 // debug(" - ACK sent for %d\n", rfm12b_get_data_len());
             }
-            
+
             // debug("[%d] Size: %d\n", rfm12b_get_sender(), rfm12b_get_data_len());
             // for(uint32_t i = 0; i < rfm12b_get_data_len(); i++) //can also use radio.GetDataLen() if you don't like pointers
             //     debug(" > %c\n", (char)rfm12b_get_data()[i]);
@@ -99,8 +112,8 @@ void trx_poll_tx_hb(uint32_t period_tx_ms, bool nodes_timeout, int nodes_count, 
 
         va_list args;
         va_start(args, nodes_count);
-        
-        for (int i = 0; i < nodes_count; i++) 
+
+        for(int i = 0; i < nodes_count; i++)
         {
             trx_send_nack(va_arg(args, int), hb, sizeof(hb));
         }

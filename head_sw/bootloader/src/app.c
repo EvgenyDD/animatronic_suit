@@ -115,6 +115,17 @@ static void flash_led(uint32_t count, uint32_t period_flash)
     flash_fast = true;
 }
 
+static void erase_app_image(void)
+{
+    FLASH_Unlock();
+    FLASH_ClearFlag(FLASH_FLAG_EOP | FLASH_FLAG_OPERR | FLASH_FLAG_WRPERR | FLASH_FLAG_PGAERR | FLASH_FLAG_PGPERR | FLASH_FLAG_PGSERR);
+    FLASH_EraseSector(FLASH_Sector_7, VoltageRange_3);
+    if(app_image_end-ADDR_APP_IMAGE > 0x20000U)
+        FLASH_EraseSector(FLASH_Sector_8, VoltageRange_3);
+
+    FLASH_ClearFlag(FLASH_FLAG_EOP | FLASH_FLAG_OPERR | FLASH_FLAG_WRPERR | FLASH_FLAG_PGAERR | FLASH_FLAG_PGPERR | FLASH_FLAG_PGSERR);
+}
+
 void init(void)
 {
     app_end = seek_flash_start(ADDR_APP, ADDR_APP + LEN_APP - 1);
@@ -138,13 +149,15 @@ void init(void)
         if(equal == false)
         {
             copy_image();
-            flash_led(4, 500);
         }
+        erase_app_image();
+        flash_led(4, 500);
         goto_app();
     }
     else if(app_present == false && app_image_present)
     {
         copy_image();
+        erase_app_image();
         flash_led(3, 500);
         goto_app();
     }

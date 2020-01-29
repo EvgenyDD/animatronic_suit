@@ -83,8 +83,6 @@
 // shorthands to simplify sending out the proper ACK when requested
 #define RF12_WANTS_ACK ((rf12_hdr2 & RF12_HDR_ACKCTLMASK) && !(rf12_hdr1 & RF12_HDR_ACKCTLMASK))
 
-/// RF12 Maximum message size in bytes.
-#define RF12_MAXDATA 128
 /// Max transmit/receive buffer: 4 header + data + 2 crc bytes
 #define RF_MAX (RF12_MAXDATA + 6)
 

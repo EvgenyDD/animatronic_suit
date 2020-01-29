@@ -4,6 +4,9 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+/// RF12 Maximum message size in bytes.
+#define RF12_MAXDATA 128
+
 void rfm12b_init(uint8_t sync_pattern, uint8_t ID);
 void rfm12b_irq_handler(void);
 

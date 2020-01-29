@@ -1,7 +1,7 @@
 #
 #Executable name
 #
-EXE_NAME=head
+EXE_NAME=ctrl
 
 #
 #Folder to place compiled objects
@@ -131,6 +131,8 @@ EXT_LIBS +=nosys
 PPDEFS  += USE_HAL_DRIVER 
 PPDEFS  += STM32F405xx
 PPDEFS  += VECT_TAB_OFFSET=0x20000
+PPDEFS  += MSG_COUNT=64
+PPDEFS  += NODES_COUNT=1
 
 #
 #Include directories
@@ -143,6 +145,9 @@ INCDIR  += base/Drivers/STM32F4xx_HAL_Driver/Inc
 INCDIR  += base/Drivers/STM32F4xx_HAL_Driver/Inc/Legacy 
 INCDIR  += base/Drivers/CMSIS/Device/ST/stm32f4xx/Include 
 INCDIR  += base/Drivers/CMSIS/Include
+INCDIR  += base/Middlewares/ST/STM32_USB_Device_Library/Core/Inc/
+INCDIR  += base/Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Inc
+
 
 # INCDIR  += app/common/canopennode
 # INCDIR  += app/common/canopennode/stack
@@ -164,6 +169,8 @@ SOURCES += base/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_exti.c
 SOURCES += base/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_flash.c 
 SOURCES += base/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_flash_ex.c 
 SOURCES += base/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_gpio.c 
+SOURCES += base/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_pcd.c 
+SOURCES += base/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_pcd_ex.c 
 SOURCES += base/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_pwr.c 
 SOURCES += base/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_pwr_ex.c 
 SOURCES += base/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_spi.c 
@@ -173,11 +180,23 @@ SOURCES += base/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_rng.c
 SOURCES += base/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_tim.c 
 SOURCES += base/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_tim_ex.c 
 SOURCES += base/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_hal_uart.c 
+SOURCES += base/Drivers/STM32F4xx_HAL_Driver/Src/stm32f4xx_ll_usb.c
+
+
+SOURCES += base/Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_core.c
+SOURCES += base/Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_ctlreq.c
+SOURCES += base/Middlewares/ST/STM32_USB_Device_Library/Core/Src/usbd_ioreq.c
+SOURCES += base/Middlewares/ST/STM32_USB_Device_Library/Class/CDC/Src/usbd_cdc.c
 
 SOURCES += base/Src/main.c
 #SOURCES += base/Src/system_stm32f4xx.c
 SOURCES += base/Src/stm32f4xx_it.c
 SOURCES += base/Src/stm32f4xx_hal_msp.c
+SOURCES += base/Src/usb_device.c
+SOURCES += base/Src/usbd_cdc_if.c
+SOURCES += base/Src/usbd_conf.c
+SOURCES += base/Src/usbd_desc.c
+
 
 SOURCES += $(wildcard src/*.c)
 SOURCES += $(wildcard ../lib/rfm12b/*.c)
