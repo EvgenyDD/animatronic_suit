@@ -1,13 +1,13 @@
 #include "debug.h"
 #include "main.h"
+#include <serial_suit_protocol.h>
 #include "usbd_cdc_if.h"
-#include "serial_suit_protocol.h"
 
 #include <stdarg.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdbool.h>
 
 extern UART_HandleTypeDef huart1;
 extern USBD_HandleTypeDef hUsbDeviceFS;
@@ -23,11 +23,14 @@ int buffer_rx_cnt = 0;
 void debug_parse(char *s);
 
 static volatile bool is_tx = false;
+static bool usb_enabled = true;
 
 void debug_init(void)
 {
     __HAL_UART_ENABLE(&huart1);
 }
+
+void debug_disable_usb(void) { usb_enabled = false; }
 
 void debug(char *format, ...)
 {
@@ -37,21 +40,19 @@ void debug(char *format, ...)
     static char buffer[CON_OUT_BUF_SZ + 1];
     va_list ap;
 
-
-
-    if(hUsbDeviceFS.dev_state == USBD_STATE_CONFIGURED)
+    if(hUsbDeviceFS.dev_state == USBD_STATE_CONFIGURED && usb_enabled)
     {
-            va_start(ap, format);
-    vsnprintf(buffer+1, CON_OUT_BUF_SZ-1, format, ap);
-    va_end(ap);
-    buffer[0] = SSP_CMD_DEBUG;
+        va_start(ap, format);
+        vsnprintf(buffer + 1, CON_OUT_BUF_SZ - 1, format, ap);
+        va_end(ap);
+        buffer[0] = SSP_CMD_DEBUG;
         CDC_Transmit_FS(buffer, strlen(buffer));
     }
     else
-    { 
-            va_start(ap, format);
-    vsnprintf(buffer, CON_OUT_BUF_SZ, format, ap);
-    va_end(ap);
+    {
+        va_start(ap, format);
+        vsnprintf(buffer, CON_OUT_BUF_SZ, format, ap);
+        va_end(ap);
         HAL_UART_Transmit(&huart1, buffer, strlen(buffer), 200);
     }
 

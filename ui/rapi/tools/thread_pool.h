@@ -116,7 +116,7 @@ private:
         }
         catch(Terminated& e)
         {
-            std::cout << "[ERROR]\t" << __FUNCTION__ << ": " << e.what() <<  std::endl;
+            std::cout << "[ERROR]\t" << __FUNCTION__ << ": " << e.what() << std::endl;
         }
     }
 

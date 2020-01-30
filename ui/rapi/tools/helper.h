@@ -121,17 +121,17 @@ public:
 class AnyFile
 {
 public:
-    AnyFile(std::string path) : path(path){}
+    AnyFile(std::string path) : path(path) {}
     ~AnyFile()
     {
         close();
     }
 
-    bool open_r() { return open(std::fstream::in); }
-    bool open_w() { return open(std::fstream::out); }
-    bool open_append(){ return open(std::fstream::in | std::fstream::out | std::fstream::app); }
+    bool open_r(bool is_binary_mode = false) { return open(std::fstream::in | (is_binary_mode ? std::fstream::binary : static_cast<std::ios_base::openmode>(0))); }
+    bool open_w(bool is_binary_mode = false) { return open(std::fstream::out | (is_binary_mode ? std::fstream::binary : static_cast<std::ios_base::openmode>(0))); }
+    bool open_append(bool is_binary_mode = false) { return open(std::fstream::in | std::fstream::out | std::fstream::app | (is_binary_mode ? std::fstream::binary : static_cast<std::ios_base::openmode>(0))); }
 
-    template<class T>
+    template <class T>
     bool append(T t)
     {
         fs << t;
@@ -171,7 +171,6 @@ public:
         }
         return 0;
     }
-
 
     template <class... Args>
     static int append_to_file(std::string filename, Args... args)

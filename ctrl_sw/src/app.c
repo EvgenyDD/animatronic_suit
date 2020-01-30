@@ -3,6 +3,7 @@
 #include "hb_tracker.h"
 #include "main.h"
 #include "trx.h"
+#include "flasher_hal.h"
 
 #include <string.h>
 
@@ -24,6 +25,9 @@ void init(void)
 {
     debug_init();
     adc_init();
+
+    FLASH_Unlock();
+    FLASH_ClearFlag(FLASH_FLAG_EOP | FLASH_FLAG_OPERR | FLASH_FLAG_WRPERR | FLASH_FLAG_PGAERR | FLASH_FLAG_PGPERR | FLASH_FLAG_PGSERR);
 
     hbt_head = hb_tracker_init(RFM_NET_ID_HEAD, 700 /* 2x HB + 100 ms*/);
 
@@ -103,7 +107,7 @@ void loop(void)
         static uint32_t fail_cnt = 0;
         if(sts) fail_cnt++;
         if(sts)
-            debug("Send Light %d fc %d\n", sts ? 1 : 0, fail_cnt);
+            debug("Light %d fail %d\n", sts ? 1 : 0, fail_cnt);
     }
 }
 

@@ -27,3 +27,4 @@ ui/Makefile
 *.d
 *.log
 logs
+*.ini

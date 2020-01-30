@@ -30,6 +30,8 @@ public:
 private:
     //https://github.com/wjwwood/serial
 
+    basic_thread thread_discovery;
+
     int threadDiscovery()
     {
         std::vector<serial::PortInfo> devices_found = serial::PortList::list_ports();
@@ -57,7 +59,6 @@ private:
                             std::string(connId),
                             nullptr);
             }
-
         }
 
         std::this_thread::sleep_for(std::chrono::milliseconds(100));

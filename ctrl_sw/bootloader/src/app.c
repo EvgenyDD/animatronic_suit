@@ -132,7 +132,7 @@ void init(void)
     app_present = app_end != ADDR_APP;
 
     app_image_end = seek_flash_start(ADDR_APP_IMAGE, ADDR_APP_IMAGE + LEN_APP_IMAGE - 1);
-    app_image_present = app_image_end != ADDR_APP_IMAGE;
+    app_image_present = app_image_end != ADDR_APP_IMAGE && *(uint32_t*)ADDR_APP_IMAGE != 0xFFFFFFFF;
 
     if(app_present == false && app_image_present == false)
     {
@@ -149,16 +149,19 @@ void init(void)
         if(equal == false)
         {
             copy_image();
+            flash_led(1, 250);
         }
-        erase_app_image();
-        flash_led(4, 500);
+        {
+            erase_app_image();
+            flash_led(4, 250);
+        }
         goto_app();
     }
     else if(app_present == false && app_image_present)
     {
         copy_image();
         erase_app_image();
-        flash_led(3, 500);
+        flash_led(3, 250);
         goto_app();
     }
 }
@@ -167,7 +170,7 @@ void loop(void)
 {
     if(time_up_ms > countdown_turn_off)
     {
-        flash_led(2, 500);
+        flash_led(2, 250);
         period = 200;
     }
 }

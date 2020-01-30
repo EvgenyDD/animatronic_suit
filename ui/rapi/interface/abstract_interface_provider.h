@@ -36,7 +36,6 @@ protected:
         collector->append_interface<Interface, Parser>(std::forward<Args>(args)...);
     }
 
-    basic_thread thread_discovery;
 
 private:
     std::shared_ptr<InterfaceCollector> collector;

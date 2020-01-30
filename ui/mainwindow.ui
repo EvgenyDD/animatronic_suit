@@ -13,9 +13,43 @@
   <property name="windowTitle">
    <string>ASuit Manager</string>
   </property>
+  <property name="windowIcon">
+   <iconset>
+    <normaloff>paw.png</normaloff>paw.png</iconset>
+  </property>
   <widget class="QWidget" name="centralWidget">
    <layout class="QGridLayout" name="gridLayout">
     <item row="0" column="0">
+     <widget class="QLineEdit" name="fw_path_ctrl"/>
+    </item>
+    <item row="0" column="1">
+     <widget class="QPushButton" name="btn_upd_ctrl">
+      <property name="text">
+       <string>Update CTRL</string>
+      </property>
+     </widget>
+    </item>
+    <item row="1" column="0">
+     <widget class="QLineEdit" name="fw_path_head"/>
+    </item>
+    <item row="1" column="1">
+     <widget class="QPushButton" name="btn_upd_head">
+      <property name="text">
+       <string>Update HEAD</string>
+      </property>
+     </widget>
+    </item>
+    <item row="2" column="0">
+     <widget class="QLineEdit" name="fw_path_tail"/>
+    </item>
+    <item row="2" column="1">
+     <widget class="QPushButton" name="btn_upd_tail">
+      <property name="text">
+       <string>Update TAIL</string>
+      </property>
+     </widget>
+    </item>
+    <item row="3" column="0" colspan="2">
      <widget class="QTextBrowser" name="logBrowser"/>
     </item>
    </layout>

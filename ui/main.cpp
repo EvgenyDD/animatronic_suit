@@ -11,10 +11,12 @@
 static auto &rapi_instance = RAPI::instance();
 
 std::queue_threadsafe<char> q_log;
+Flasher flasher(q_log);
 
 void RAPI::set_parser_cb(AbstractInterface* iface)
 {
     auto *r = new ASuitProtocol(iface->get_id(), iface->get_if_impl_mutex(), q_log);
+    flasher.set_protocol(r);
     iface->set_parser(r);
     iface->get_ptr_impl()->set_tx(std::bind(&AbstractInterface::tx_data, iface, std::placeholders::_1));
 }
@@ -30,7 +32,7 @@ void RAPI::setup_interfaces()
 int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
-    MainWindow w(q_log);
+    MainWindow w(q_log, &flasher);
     w.show();
 
     return a.exec();
