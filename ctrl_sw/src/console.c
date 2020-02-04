@@ -19,13 +19,13 @@ static int strcmp_(char *s1, char *s2)
         s2++;
     }
 }
- 
+
 static int find_space(char *s)
 {
     char *ss = s;
     for(;; ss++)
     {
-        if(*ss == '\n' || ss == '\0') return 0;
+        if(*ss == '\n' || *ss == '\0') return 0;
         if(*ss == ' ') return ss - s + 1;
     }
 }

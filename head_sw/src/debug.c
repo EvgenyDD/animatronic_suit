@@ -56,7 +56,7 @@ void debug_rf(char *format, ...)
     vsnprintf(buffer+1, sizeof(buffer)-1, format, ap);
     va_end(ap);
 
-    trx_send_nack(RFM_NET_ID_CTRL, buffer, strlen(buffer));
+    // trx_send_nack(RFM_NET_ID_CTRL, buffer, strlen(buffer));
 
     is_tx = false;
 }

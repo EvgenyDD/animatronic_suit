@@ -2,10 +2,12 @@
  * Source: https://github.com/LowPowerLab/RFM12B
  **/
 #include "rfm12b.h"
-#include "main.h"
 #include "debug.h"
+#include "main.h"
 
 #include <string.h>
+
+extern void something_receiving(void);
 
 #define RFM_SPI SPI3
 
@@ -129,27 +131,29 @@ enum
 static void (*crypter)(bool) = NULL;
 static uint32_t crypt_key[4] = {0}; // encryption key to use
 static volatile uint16_t rf12_crc = 0;
-static volatile uint32_t rf12_buf_u32[RF_MAX/sizeof(uint32_t)] = {0};
-static volatile uint8_t *rf12_buf = (volatile uint8_t*)rf12_buf_u32;
+static volatile uint32_t rf12_buf_u32[RF_MAX / sizeof(uint32_t)] = {0};
+static volatile uint8_t *rf12_buf = (volatile uint8_t *)rf12_buf_u32;
 static long rf12_seq = 0;
 static uint32_t seqNum = 0;
 static volatile int8_t rxstate = TXIDLE;
 static volatile uint8_t rxfill = 0;
 static uint8_t networkID = 0;
-static uint8_t nodeID = 0;
+static uint8_t own_id = 0;
 
 static volatile bool irq_fired = false;
 
-uint8_t rfm12b_get_sender(void) { return RF12_SOURCEID; }
+uint8_t rfm12b_get_sender_id(void) { return RF12_SOURCEID; }
 bool rfm12b_is_ack_requested(void) { return RF12_WANTS_ACK; }
 uint8_t rfm12b_get_data_len(void) { return rf12_buf[3]; }
+uint8_t rfm12b_get_dest_id(void) { return RF12_DESTID; }
+uint8_t rfm12b_get_own_id(void) { return own_id; }
 volatile uint8_t *rfm12b_get_data(void) { return rf12_data; }
 bool rfm12b_is_crc_pass(void) { return rf12_crc == 0; }
 
 static uint8_t rfm12b_trx_1b(uint8_t byte)
 {
     uint8_t rx;
-__disable_irq();
+    __disable_irq();
     PIN_CLR(RFM_CS);
     DELAY_US(1);
 
@@ -162,14 +166,14 @@ __disable_irq();
     PIN_SET(RFM_CS);
     DELAY_US(1);
 
-__enable_irq();
+    __enable_irq();
     return rx;
 }
 
 static uint16_t rfm12b_trx_2b(uint16_t word)
 {
     uint8_t rx[2];
-__disable_irq();
+    __disable_irq();
     PIN_CLR(RFM_CS);
     DELAY_US(1);
 
@@ -184,7 +188,7 @@ __disable_irq();
 
     PIN_SET(RFM_CS);
     DELAY_US(1);
-__enable_irq();
+    __enable_irq();
     return (rx[0] << 8) | rx[1];
 }
 
@@ -208,18 +212,18 @@ static void _crypt_function(bool sending)
 #define MX (((z >> 5 ^ y << 2) + (y >> 3 ^ z << 4)) ^ ((sum ^ y) + (crypt_key[(uint8_t)((p & 3) ^ e)] ^ z)))
 
     uint32_t y, z, sum;
-// #pragma GCC diagnostic push
-// #pragma GCC diagnostic ignored "-Wcast-align"
+    // #pragma GCC diagnostic push
+    // #pragma GCC diagnostic ignored "-Wcast-align"
     volatile uint32_t *v = &rf12_buf_u32[1];
-// #pragma GCC diagnostic pop
+    // #pragma GCC diagnostic pop
     uint8_t p, e, rounds = 6;
 
     if(sending)
     {
         ++seqNum;
         // memcpy(rf12_data + rf12_len, &seqNum, sizeof(seqNum));
-        for(uint8_t i=0; i<sizeof(seqNum);i++)
-        rf12_data[rf12_len + i] = *(((uint8_t*)&seqNum) + i);
+        for(uint8_t i = 0; i < sizeof(seqNum); i++)
+            rf12_data[rf12_len + i] = *(((uint8_t *)&seqNum) + i);
         uint8_t pad = 3 - (rf12_len & 3);
         rf12_len += pad;
         rf12_data[rf12_len] &= 0x3F;
@@ -289,15 +293,15 @@ static bool can_send(void)
 static void send_start(uint8_t to_node_id, const void *data, uint8_t data_len, bool request_ack, bool sendACK, bool is_sleep)
 {
     rf12_len = data_len;
-// #pragma GCC diagnostic push
-// #pragma GCC diagnostic ignored "-Wcast-qual"
+    // #pragma GCC diagnostic push
+    // #pragma GCC diagnostic ignored "-Wcast-qual"
     // memcpy((void *)rf12_data, data, data_len);
-    for(uint8_t i=0; i < data_len;i++)
-        *(rf12_data+i) = *(((const uint8_t*)data) + i);
-// #pragma GCC diagnostic pop
+    for(uint8_t i = 0; i < data_len; i++)
+        *(rf12_data + i) = *(((const uint8_t *)data) + i);
+    // #pragma GCC diagnostic pop
 
     rf12_hdr1 = to_node_id | (sendACK ? RF12_HDR_ACKCTLMASK : 0);
-    rf12_hdr2 = nodeID | (request_ack ? RF12_HDR_ACKCTLMASK : 0);
+    rf12_hdr2 = own_id | (request_ack ? RF12_HDR_ACKCTLMASK : 0);
     if(crypter != 0) crypter(true);
     rf12_crc = 0xFFFF;
     rf12_crc = _crc16_update(rf12_crc, networkID);
@@ -311,11 +315,11 @@ static void send_start(uint8_t to_node_id, const void *data, uint8_t data_len, b
     {
         if(is_sleep)
         {
-            uint32_t to = HAL_GetTick()+ 500;
+            uint32_t to = HAL_GetTick() + 500;
             while(irq_fired == false)
             {
                 asm("nop");
-                if(to <  HAL_GetTick())
+                if(to < HAL_GetTick())
                 {
                     debug("STUCK @0");
                     to = HAL_GetTick() + 500;
@@ -439,7 +443,7 @@ void rfm12b_config(uint8_t sync_pattern)
 
 void rfm12b_init(uint8_t sync_pattern, uint8_t ID)
 {
-    nodeID = ID;
+    own_id = ID;
 
     RFM_SPI->CR1 |= SPI_CR1_SPE; // enable SPI
     PIN_SET(RFM_CS);
@@ -466,8 +470,8 @@ bool rfm12b_rx_complete(void)
         rxstate = TXIDLE;
         if(rf12_len > RF12_MAXDATA)
             rf12_crc = 1; // force bad crc if packet length is invalid
-        if(RF12_DESTID == 0 || RF12_DESTID == nodeID)
-        { //if (!(rf12_hdr & RF12_HDR_DST) || (nodeID & NODE_ID) == 31 || (rf12_hdr & RF12_HDR_MASK) == (nodeID & NODE_ID)) {
+        // if(RF12_DESTID == 0 || RF12_DESTID == own_id)
+        { //if (!(rf12_hdr & RF12_HDR_DST) || (own_id & NODE_ID) == 31 || (rf12_hdr & RF12_HDR_MASK) == (own_id & NODE_ID)) {
             if(rf12_crc == 0 && crypter != 0)
                 crypter(false);
             else
@@ -490,32 +494,32 @@ bool rfm12b_rx_complete(void)
 
 void rfm12b_send(uint8_t to_node_id, const void *data, uint8_t data_len, bool request_ack, bool is_sleep)
 {
-    uint32_t to = HAL_GetTick()+ 500;
-    
+    uint32_t to = HAL_GetTick() + 500;
+
     while(!can_send())
     {
         rfm12b_rx_complete();
-        if(to <  HAL_GetTick())
+        if(to < HAL_GetTick())
         {
             debug("Stuck @1");
-            to = HAL_GetTick() + 500; 
+            to = HAL_GetTick() + 500;
         }
     }
 
     send_start(to_node_id, data, data_len, request_ack, false, is_sleep);
-} 
+}
 
 void rfm12b_sendACK(const void *data, uint8_t data_len, bool is_sleep)
 {
-    uint32_t to = HAL_GetTick()+ 500;
-    
+    uint32_t to = HAL_GetTick() + 500;
+
     while(!can_send())
     {
         rfm12b_rx_complete();
-        if(to <  HAL_GetTick())
+        if(to < HAL_GetTick())
         {
             debug("Stuck @2");
-            to = HAL_GetTick() + 500; 
+            to = HAL_GetTick() + 500;
         }
     }
 
@@ -526,7 +530,7 @@ bool rfm12b_is_ack_received(uint8_t drom_node_id)
 {
     if(rfm12b_rx_complete())
         return rfm12b_is_crc_pass() &&
-               RF12_DESTID == nodeID &&
+               RF12_DESTID == own_id &&
                (RF12_SOURCEID == drom_node_id || drom_node_id == 0) &&
                (rf12_hdr1 & RF12_HDR_ACKCTLMASK) &&
                !(rf12_hdr2 & RF12_HDR_ACKCTLMASK);
@@ -541,6 +545,7 @@ void rfm12b_irq_handler(void)
 
     if(rxstate == TXRECV)
     {
+        something_receiving();
         uint8_t in = rfm12b_trx_2b(RFM12B_RX_FIFO_READ); /* note: MAX SPI freq = 2.5MHZ here*/
 
         if(rxfill == 0 && networkID != 0)

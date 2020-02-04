@@ -23,9 +23,9 @@ bool led_set(uint8_t led, uint32_t value)
 {
     if(value > 100) value = 100;
     __IO uint32_t *ptr[] = {
-        &TIM2->CCR3, 
-        &TIM2->CCR4, 
-        &TIM2->CCR1  };
+        &TIM2->CCR3,
+        &TIM2->CCR4,
+        &TIM2->CCR1};
     if(led > 2) return true;
     *ptr[led] = value;
     return false;
@@ -33,7 +33,7 @@ bool led_set(uint8_t led, uint32_t value)
 
 bool led_set_gamma(uint8_t led, uint8_t value)
 {
-    led_set(led, gamma8[value]);
+    return led_set(led, gamma8[value]);
 }
 
 static color_t hsv2rgb(float h, float s, float v)

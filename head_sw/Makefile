@@ -16,7 +16,7 @@ VERBOSE=no
 #
 #Colorize ouput
 #
-COLORIZE=yes
+COLORIZE=no
 
 #
 #Enable binary creation
@@ -131,6 +131,9 @@ EXT_LIBS +=nosys
 PPDEFS  += USE_HAL_DRIVER 
 PPDEFS  += STM32F405xx
 PPDEFS  += VECT_TAB_OFFSET=0x20000
+PPDEFS  += MSG_COUNT=64
+PPDEFS  += NODES_COUNT=3
+PPDEFS  += OWN_ID=RFM_NET_ID_HEAD
 
 #
 #Include directories

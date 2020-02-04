@@ -23,7 +23,7 @@ int buffer_rx_cnt = 0;
 void debug_parse(char *s);
 
 static volatile bool is_tx = false;
-static bool usb_enabled = true;
+static bool usb_enabled = false;
 
 void debug_init(void)
 {

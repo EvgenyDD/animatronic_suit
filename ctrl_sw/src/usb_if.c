@@ -1,10 +1,10 @@
 #include "debug.h"
+#include "flash_regions.h"
+#include "flasher_hal.h"
 #include "main.h"
 #include "rfm_net.h"
 #include "serial_suit_protocol.h"
 #include "usbd_cdc_if.h"
-#include "flasher_hal.h"
-#include "flash_regions.h"
 
 #include <stdbool.h>
 #include <stdint.h>
@@ -13,11 +13,22 @@ extern USBD_HandleTypeDef hUsbDeviceFS;
 
 static uint8_t tx_buf[1024];
 
-void tx(uint8_t *buf, uint32_t len)
+static uint32_t crc32_calc(const uint32_t *buf, uint32_t len)
+{
+    CRC->CR |= CRC_CR_RESET;
+
+    for(uint32_t i = 0; i < len; i++)
+    {
+        CRC->DR = buf[i];
+    }
+
+    return CRC->DR;
+}
+
+static void tx(uint8_t *buf, uint32_t len)
 {
     CDC_Transmit_FS(buf, len);
 }
-
 
 void usb_if_rx(uint8_t *buf, uint32_t len)
 {
@@ -43,7 +54,8 @@ void usb_if_rx(uint8_t *buf, uint32_t len)
                     // TODO
                     break;
 
-                default: break;
+                default:
+                    break;
                 }
             }
             break;
@@ -57,9 +69,10 @@ void usb_if_rx(uint8_t *buf, uint32_t len)
                 {
                     tx_buf[0] = SSP_CMD_FLASH;
                     tx_buf[1] = buf[1];
-                    uint32_t addr;
-                    memcpy(&addr, buf+2, 4);
-                    uint32_t len_flash = len - 6;
+
+                    uint32_t addr, len_flash = len - 6;
+                    memcpy(&addr, buf + 2, 4);
+
                     switch(buf[1])
                     {
                     case RFM_NET_ID_CTRL:
@@ -71,24 +84,60 @@ void usb_if_rx(uint8_t *buf, uint32_t len)
                         else
                         {
                             tx_buf[2] = SSP_FLASH_OK;
-                            for(uint32_t i = 0; i < len_flash; i++)
+                            if(addr == ADDR_APP_IMAGE)
                             {
-                                if(FLASH_ProgramByte(addr + i, buf[6+i]) != FLASH_COMPLETE)
+                                len_flash = 4;
+                                if(len != 6 + 4 /*data*/ + 4 /* len */ + 4 /*crc*/)
                                 {
-                                    tx_buf[2] = SSP_FLASH_FAIL;
-                                    break;
+                                    tx_buf[2] = SSP_FLASH_WRONG_CRC_ADDRESS;
                                 }
-                                if(*(uint8_t*)(addr+i) != buf[6+i])
+                                else
                                 {
-                                    tx_buf[2] = SSP_FLASH_VERIFY_FAIL;
-                                    break;
+                                    uint32_t first_word, len_full, crc_ref;
+                                    memcpy(&first_word, buf + 6, 4);
+                                    memcpy(&len_full, buf + 6 + 4, 4);
+                                    memcpy(&crc_ref, buf + 6 + 4 + 4, 4);
+
+                                    if(len_full >= LEN_APP_IMAGE || (len_full % 4) != 0)
+                                    {
+                                        tx_buf[2] = SSP_FLASH_WRONG_FULL_LENGTH;
+                                    }
+                                    else
+                                    {
+                                        CRC->CR |= CRC_CR_RESET;
+                                        CRC->DR = first_word;
+                                        for(uint32_t i = ADDR_APP_IMAGE + 4; i < (ADDR_APP_IMAGE + len_full); i += 4)
+                                        {
+                                            CRC->DR = *(uint32_t *)i;
+                                        }
+                                        if(CRC->DR != crc_ref)
+                                        {
+                                            tx_buf[2] = SSP_FLASH_WRONG_CRC;
+                                        }
+                                    }
+                                }
+                            }
+                            if(tx_buf[2] == SSP_FLASH_OK)
+                            {
+                                for(uint32_t i = 0; i < len_flash; i++)
+                                {
+                                    if(FLASH_ProgramByte(addr + i, buf[6 + i]) != FLASH_COMPLETE)
+                                    {
+                                        tx_buf[2] = SSP_FLASH_FAIL;
+                                        break;
+                                    }
+                                    if(*(uint8_t *)(addr + i) != buf[6 + i])
+                                    {
+                                        tx_buf[2] = SSP_FLASH_VERIFY_FAIL;
+                                        break;
+                                    }
                                 }
                             }
                             memcpy(tx_buf + 3, &addr, 4);
-                            tx(tx_buf, 3+4);
+                            tx(tx_buf, 3 + 4);
                             break;
                         }
-                        
+
                         tx(tx_buf, 3);
                     }
                     break;
@@ -107,7 +156,7 @@ void usb_if_rx(uint8_t *buf, uint32_t len)
                     }
                     break;
 
-                    default:                   
+                    default:
                     {
                         tx_buf[2] = SSP_FLASH_UNEXIST;
                         tx(tx_buf, 3);
@@ -124,8 +173,8 @@ void usb_if_rx(uint8_t *buf, uint32_t len)
             }
             break;
 
-            case SSP_CMD_REBOOT:
-            if(len >= 2) 
+        case SSP_CMD_REBOOT:
+            if(len >= 2)
             {
                 switch(buf[1])
                 {
@@ -135,7 +184,7 @@ void usb_if_rx(uint8_t *buf, uint32_t len)
                     // USB_DevDisconnect(hpcd->Instance);
                     HAL_NVIC_SystemReset();
                 }
-                    break;
+                break;
 
                 case RFM_NET_ID_HEAD:
                     // TODO
@@ -145,13 +194,14 @@ void usb_if_rx(uint8_t *buf, uint32_t len)
                     // TODO
                     break;
 
-                default: break;
+                default:
+                    break;
                 }
             }
             break;
 
-            default:
-                break;
+        default:
+            break;
         }
     }
 }

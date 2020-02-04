@@ -27,6 +27,13 @@ extern uint32_t rx_cnt;
 
 hbt_node_t *hbt_ctrl;
 
+uint32_t get_random(void){return HAL_RNG_GetRandomNumber(&hrng);}
+
+const uint8_t iterator_ctrl = 1;
+
+
+    
+
 void init(void)
 {
     HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
@@ -59,7 +66,8 @@ void init(void)
 
     hbt_ctrl = hb_tracker_init(RFM_NET_ID_CTRL, 700 /* 2x HB + 100 ms*/);
 
-    trx_init(RFM_NET_ID_HEAD);
+    trx_init();
+    trx_init_node(iterator_ctrl, RFM_NET_ID_CTRL);
 }
 
 void loop(void)
@@ -70,14 +78,7 @@ void loop(void)
         prev_tick = HAL_GetTick() + 500;
     }
 
-    trx_poll_rx();
-    trx_poll_tx_hb(280, hb_tracker_is_timeout(hbt_ctrl), 1, RFM_NET_ID_CTRL);
-
-    static uint32_t ctrl_hb = 5000;
-    if(ctrl_hb < HAL_GetTick())
-    {
-        ctrl_hb = HAL_GetTick() + 500;
-    }
+    trx_poll();
 
     static uint32_t hbtt = 0;
     if(hbtt < HAL_GetTick())
@@ -104,7 +105,7 @@ void loop(void)
         float temp = adc_logic_get_temp();
         memcpy(data + 1, &vbat, 4);
         memcpy(data + 1 + 4, &temp, 4);
-        trx_send_ack(RFM_NET_ID_CTRL, data, sizeof(data));
+        trx_send_async(iterator_ctrl, data, sizeof(data));
         // debug_rf("*");
     }
 }
@@ -115,15 +116,15 @@ void process_data(uint8_t sender_node_id, const volatile uint8_t *data, uint8_t 
     {
         switch(data[0])
         {
-        case RFM_NET_CMD_HB:
-        {
-            if(data_len == 2)
-            {
-                bool not_found = hb_tracker_update(sender_node_id);
-                // if(not_found) debug("HB unknown %d\n", sender_node_id);
-            }
-        }
-        break;
+        // case RFM_NET_CMD_HB:
+        // {
+        //     if(data_len == 2)
+        //     {
+        //         bool not_found = hb_tracker_update(sender_node_id);
+        //         // if(not_found) debug("HB unknown %d\n", sender_node_id);
+        //     }
+        // }
+        // break;
 
         case RFM_NET_CMD_LIGHT:
         {

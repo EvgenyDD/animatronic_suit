@@ -16,7 +16,7 @@ VERBOSE=no
 #
 #Colorize ouput
 #
-COLORIZE=yes
+COLORIZE=no
 
 #
 #Enable binary creation

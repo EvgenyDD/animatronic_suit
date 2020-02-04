@@ -1,16 +1,15 @@
 #ifndef TRX_H
 #define TRX_H
 
+#include "rfm_net.h"
 #include <stdbool.h>
 #include <stdint.h>
-#include "rfm_net.h"
 
-void trx_init(uint8_t own_id);
+void trx_init(void);
+void trx_init_node(uint8_t iterator, uint8_t node_id);
 
-bool trx_send_ack(uint8_t node_id, uint8_t *payload, uint8_t payload_length);
-void trx_send_nack(uint8_t node_id, uint8_t *payload, uint8_t payload_length);
+void trx_poll(void);
 
-void trx_poll_rx(void);
-void trx_poll_tx_hb(uint32_t period_tx_ms, bool nodes_timeout, int nodes_count, ...);
+void trx_send_async(uint8_t iterator, const uint8_t *payload, uint8_t payload_length);
 
 #endif // TRX_H

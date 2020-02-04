@@ -1,9 +1,9 @@
 #include "adc.h"
 #include "debug.h"
+#include "flasher_hal.h"
 #include "hb_tracker.h"
 #include "main.h"
 #include "trx.h"
-#include "flasher_hal.h"
 
 #include <string.h>
 
@@ -21,6 +21,11 @@ hbt_node_t *hbt_head;
 
 bool to_from_head = true;
 
+uint32_t get_random(void){return HAL_RNG_GetRandomNumber(&hrng);}
+
+const uint8_t iterator_head = 1;
+const uint8_t iterator_tail = 2;
+
 void init(void)
 {
     debug_init();
@@ -31,7 +36,9 @@ void init(void)
 
     hbt_head = hb_tracker_init(RFM_NET_ID_HEAD, 700 /* 2x HB + 100 ms*/);
 
-    trx_init(RFM_NET_ID_CTRL);
+    trx_init();
+    trx_init_node(iterator_head, RFM_NET_ID_HEAD);
+    trx_init_node(iterator_tail, RFM_NET_ID_TAIL);
 }
 
 void loop(void)
@@ -63,8 +70,8 @@ void loop(void)
         }
     }
 
-    trx_poll_rx();
-    trx_poll_tx_hb(300, hb_tracker_is_timeout(hbt_head), 1, RFM_NET_ID_HEAD);
+    trx_poll();
+
 
     static uint32_t prev_ticke = 0;
 
@@ -94,29 +101,38 @@ void loop(void)
     static uint32_t ctrl_hb = 0;
     if(ctrl_hb < HAL_GetTick())
     {
-        ctrl_hb = HAL_GetTick() + 200;
+        ctrl_hb = HAL_GetTick() + 400;
 
         uint8_t r = 0, g = 200, b = 0;
-        uint8_t data[4] = {RFM_NET_CMD_LIGHT, 0,0,0};
-        static uint8_t ptr=1;
+        uint8_t data[4] = {RFM_NET_CMD_LIGHT, 0, 0, 0};
+        static uint8_t ptr = 1;
         ptr++;
         if(ptr >= 4) ptr = 1;
         data[ptr] = 200;
-        bool sts = trx_send_ack(RFM_NET_ID_HEAD, data, sizeof(data));
+        trx_send_async(iterator_head, data, sizeof(data));
 
-        static uint32_t fail_cnt = 0;
-        if(sts) fail_cnt++;
-        if(sts)
-            debug("Light %d fail %d\n", sts ? 1 : 0, fail_cnt);
+        // static uint32_t fail_cnt = 0;
+        // if(sts) fail_cnt++;
+        // if(sts)
+        //     debug("Light %d fail %d\n", sts ? 1 : 0, fail_cnt);
     }
+
+    static uint32_t prev = 0;
+    static uint32_t cnt = 0;
+    if(prev < HAL_GetTick())
+    {
+        prev = HAL_GetTick() + 1000;
+        debug("STAT: %d\n", cnt);
+        cnt = 0;
+    }
+    cnt++;
 }
 
-
-static void memcpy_volatile(void *src, const volatile void* dst, size_t size)
+static void memcpy_volatile(void *src, const volatile void *dst, size_t size)
 {
-    for(uint32_t i=0; i<size; i++)
+    for(uint32_t i = 0; i < size; i++)
     {
-        *((uint8_t*)src + i) = *((const volatile uint8_t*)dst + i);
+        *((uint8_t *)src + i) = *((const volatile uint8_t *)dst + i);
     }
 }
 
@@ -134,19 +150,19 @@ void process_data(uint8_t sender_node_id, const volatile uint8_t *data, uint8_t 
             if(data[data_len - 1] != '\n') debug("\n");
             break;
 
-        case RFM_NET_CMD_HB:
-        {
-            if(data_len==2)
-            {   
-                bool not_found = hb_tracker_update(sender_node_id);
-                if(not_found) debug("HB unknown %d\n", sender_node_id);
-                if(sender_node_id == RFM_NET_ID_HEAD)
-                {
-                    to_from_head = data[1];
-                }
-            }
-        }
-        break;
+        // case RFM_NET_CMD_HB:
+        // {
+        //     if(data_len == 2)
+        //     {
+        //         bool not_found = hb_tracker_update(sender_node_id);
+        //         if(not_found) debug("HB unknown %d\n", sender_node_id);
+        //         if(sender_node_id == RFM_NET_ID_HEAD)
+        //         {
+        //             to_from_head = data[1];
+        //         }
+        //     }
+        // }
+        // break;
 
         case RFM_NET_CMD_STS_HEAD:
             if(data_len == 1 + 4 + 4)

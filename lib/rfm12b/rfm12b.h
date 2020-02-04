@@ -34,6 +34,8 @@ bool rfm12b_is_ack_received(uint8_t drom_node_id);
 
 uint8_t rfm12b_get_data_len(void);
 volatile uint8_t *rfm12b_get_data(void);
-uint8_t rfm12b_get_sender(void);
+uint8_t rfm12b_get_sender_id(void);
+uint8_t rfm12b_get_dest_id(void);
+uint8_t rfm12b_get_own_id(void);
 
 #endif // RFM12B_H

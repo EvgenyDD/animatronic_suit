@@ -28,3 +28,5 @@ ui/Makefile
 *.log
 logs
 *.ini
+ctrl_sw/bootloader/build/*
+ui/asuit_ui.pro.user.ffec760
