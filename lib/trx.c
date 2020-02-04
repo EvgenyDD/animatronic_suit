@@ -15,17 +15,36 @@ extern uint32_t get_random(void);
 #define TIMEOUT_RX_TRANSMISSION_END_CMD 300
 #define HB_INTERVAL 500
 
+#define MASTER_HB_TIMEOUT 600
+#define ACK_TIMEOUT_MS 20
+
+#ifdef AIR_PROTOCOL_MASTER
+#pragma message("Device is AIR PROTOCOL Master")
+#else
+#pragma message("Device is AIR PROTOCOL Slave")
+#endif
 typedef enum
 {
-    AIR_PROTOCOL_STATE_AWAIT_RANDOM_TO_TX,
+#ifdef AIR_PROTOCOL_MASTER
+    AIR_PROTOCOL_STATE_NODE_SACK,
+#endif
     AIR_PROTOCOL_STATE_TX,
-    AIR_PROTOCOL_STATE_OTHER_NODE_TX
+#ifdef AIR_PROTOCOL_MASTER
+    AIR_PROTOCOL_STATE_NODE_SLS,
+#endif
+    AIR_PROTOCOL_STATE_RX,
 } AIR_PROTOCOL_STATE;
 
-static AIR_PROTOCOL_STATE state = AIR_PROTOCOL_STATE_AWAIT_RANDOM_TO_TX;
+#ifdef AIR_PROTOCOL_MASTER
+uint32_t current_process_node = 0;
+static AIR_PROTOCOL_STATE state = AIR_PROTOCOL_STATE_NODE_SACK;
+#else
+uint32_t to_counter_master = 0;
+static AIR_PROTOCOL_STATE state = AIR_PROTOCOL_STATE_RX;
+#endif
+
 static uint32_t timeout_await_to_tx = 0;
 static uint32_t timeout_await_other_node_tx_to = 0;
-static uint32_t timeout_send_own_hb = 0;
 
 typedef struct
 {
@@ -51,7 +70,7 @@ inline static void change_state(AIR_PROTOCOL_STATE new)
 static bool waitForAck(uint8_t dest_node_id)
 {
     uint32_t now = HAL_GetTick();
-    while(HAL_GetTick() - now <= 20 /* ms */)
+    while(HAL_GetTick() - now <= ACK_TIMEOUT_MS)
         if(rfm12b_is_ack_received(dest_node_id))
             return true;
     return false;
@@ -62,24 +81,6 @@ static void trx_send_nack(uint8_t node_id, uint8_t *payload, uint8_t payload_len
     // rfm12b_wakeup();
     debug("n%d<%d\n", node_id, payload[0]);
     rfm12b_send(node_id, payload, payload_length, false, false);
-}
-
-static void send_tx_start(void)
-{
-    static uint8_t data[] = {RFM_NET_CMD_NODE_START_TX, OWN_ID};
-    trx_send_nack(RFM_NET_ID_BROADCAST, data, sizeof(data));
-}
-
-static void send_tx_end(void)
-{
-    static uint8_t data[] = {RFM_NET_CMD_NODE_STOP_TX, OWN_ID};
-    trx_send_nack(RFM_NET_ID_BROADCAST, data, sizeof(data));
-}
-
-static void append_hb(void)
-{
-    static uint8_t hb[] = {RFM_NET_CMD_HB, OWN_ID};
-    trx_send_async(0, hb, sizeof(hb));
 }
 
 /**
@@ -102,54 +103,65 @@ static bool _trx_send_ack(uint8_t node_id, uint8_t *payload, uint8_t payload_len
         return true;
 }
 
-static bool trx_send_ack(uint8_t node_id, uint8_t *payload, uint8_t payload_length)
+/// true - NACKed, false - ACKed
+static bool trx_send_ack(uint8_t node_id, const uint8_t *payload, uint8_t payload_length)
 {
     for(uint32_t i = 0; i < 3; i++)
     {
         if(_trx_send_ack(node_id, payload, payload_length) == false)
         {
-            debug("A%d<%d\n", node_id, payload[0]);
+            debug("A%d<%d(%d)\n", node_id, payload[0], payload_length);
             return false;
         }
-        debug("a%d<%d\n", node_id, payload[0]);
+        debug("a%d<%d(%d)\n", node_id, payload[0], payload_length);
     }
     return true;
 }
 
-static void regenerate_timeout_await_to_tx(void)
+static bool trx_send_ack_single(uint8_t node_id, const uint8_t *payload, uint8_t payload_length)
 {
-    timeout_await_to_tx = HAL_GetTick() + (get_random() % RAND_WAIT_MS_LIMIT);
-    change_state(AIR_PROTOCOL_STATE_AWAIT_RANDOM_TO_TX);
+    if(_trx_send_ack(node_id, payload, payload_length) == false)
+    {
+        debug("A%d<%d(%d)\n", node_id, payload[0], payload_length);
+        return false;
+    }
+    debug("a%d<%d(%d)\n", node_id, payload[0], payload_length);
+    return true;
 }
 
-inline static void regenerate_timeout_await_other_node_tx_to(void) { timeout_await_other_node_tx_to = HAL_GetTick() + TIMEOUT_RX_TRANSMISSION_END_CMD; }
-inline static void regenerate_hb_interval(void) { timeout_send_own_hb = HAL_GetTick() + (get_random() % 20) + HB_INTERVAL; }
-
-static void poll_tx(void)
+#ifdef AIR_PROTOCOL_MASTER
+static bool send_nop(uint8_t dest_id)
 {
-    for(uint32_t i = 0; i < NODES_COUNT; i++)
-    {
-        if(storage[i].p_push != storage[i].p_pull)
-        {
-            storage[i].p_pull++;
-            if(storage[i].p_pull >= MSG_COUNT) storage[i].p_pull = 0;
-
-            if(storage[i].dest_id == RFM_NET_ID_BROADCAST)
-                trx_send_nack(storage[i].dest_id, storage[i].data[storage[i].p_pull], storage[i].data_len[storage[i].p_pull]);
-            else
-                trx_send_ack(storage[i].dest_id, storage[i].data[storage[i].p_pull], storage[i].data_len[storage[i].p_pull]);
-            return;
-        }
-    }
-
-    // tx_pending == true
-    {
-        send_tx_end();
-        regenerate_hb_interval();
-        regenerate_timeout_await_to_tx();
-        tx_pending = false;
-    }
+    static uint8_t nop_data[] = {RFM_NET_CMD_NOP, OWN_ID};
+    bool state_tx = trx_send_ack_single(dest_id, nop_data, sizeof(nop_data));
+    hb_tracker_update_state(dest_id, state_tx);
+    return state_tx;
 }
+static bool send_sls(uint8_t dest_id)
+{
+    static uint8_t sls_data[] = {RFM_NET_CMD_SLS, OWN_ID};
+    bool state_tx = trx_send_ack(dest_id, sls_data, sizeof(sls_data));
+    hb_tracker_update_state(dest_id, state_tx);
+    return state_tx;
+}
+#endif
+#ifndef AIR_PROTOCOL_MASTER
+static bool send_sle(uint8_t dest_id)
+{
+    static uint8_t sle_data[] = {RFM_NET_CMD_SLE, OWN_ID};
+    bool state_tx = trx_send_ack(dest_id, sle_data, sizeof(sle_data));
+    hb_tracker_update_state(dest_id, state_tx);
+    return state_tx;
+}
+#endif
+// static void regenerate_timeout_await_to_tx(void)
+// {
+//     timeout_await_to_tx = HAL_GetTick() + (get_random() % RAND_WAIT_MS_LIMIT);
+//     change_state(AIR_PROTOCOL_STATE_AWAIT_RANDOM_TO_TX);
+// }
+
+// inline static void regenerate_timeout_await_other_node_tx_to(void) { timeout_await_other_node_tx_to = HAL_GetTick() + TIMEOUT_RX_TRANSMISSION_END_CMD; }
+// inline static void regenerate_hb_interval(void) { timeout_send_own_hb = HAL_GetTick() + (get_random() % 20) + HB_INTERVAL; }
 
 static void poll_rx(void)
 {
@@ -159,35 +171,46 @@ static void poll_rx(void)
         {
             if(rfm12b_get_dest_id() == RFM_NET_ID_BROADCAST)
             {
-                __disable_irq();
-                volatile uint8_t *data = rfm12b_get_data();
-                uint8_t data_len = rfm12b_get_data_len();
-                if(data_len >= 2)
-                {
-                    if(data[0] == RFM_NET_CMD_NODE_START_TX)
-                    {
-                        debug("==>\n");
-                        change_state(AIR_PROTOCOL_STATE_OTHER_NODE_TX);
-                        regenerate_timeout_await_other_node_tx_to();
-                    }
-                    else if(data[0] == RFM_NET_CMD_NODE_STOP_TX)
-                    {
-                        debug("<==\n");
-                        regenerate_timeout_await_to_tx();
-                    }
-                    else if(data[0] == RFM_NET_CMD_HB)
-                    {
-                        debug("<>\n");
-                        hb_tracker_update(rfm12b_get_sender_id());
-                    }
-                }
-                __enable_irq();
+                // __disable_irq();
+                // volatile uint8_t *data = rfm12b_get_data();
+                // uint8_t data_len = rfm12b_get_data_len();
+                // __enable_irq();
             }
             else if(rfm12b_get_dest_id() == OWN_ID)
             {
                 debug("$");
                 __disable_irq();
-                process_data(rfm12b_get_sender_id(), rfm12b_get_data(), rfm12b_get_data_len());
+
+                bool precessed = false;
+                if(rfm12b_get_data_len() >= 2)
+                {
+#ifdef AIR_PROTOCOL_MASTER
+                    if(rfm12b_get_data()[0] == RFM_NET_CMD_SLE)
+                    {
+                        debug("==>SLE\n");
+#warning "or hb"
+                        change_state(AIR_PROTOCOL_STATE_NODE_SACK);
+                        // regenerate_timeout_await_other_node_tx_to();
+                        precessed = true;
+                    }
+#endif
+
+#ifndef AIR_PROTOCOL_MASTER
+                    if(rfm12b_get_data()[0] == RFM_NET_CMD_SLS)
+                    {
+                        debug("==>SLS\n");
+                        change_state(AIR_PROTOCOL_STATE_TX);
+                        precessed = true;
+                    }
+                    if(rfm12b_get_data()[0] == RFM_NET_CMD_NOP)
+                    {
+                        precessed = true;
+                    }
+#endif
+                }
+
+                if(precessed == false) process_data(rfm12b_get_sender_id(), rfm12b_get_data(), rfm12b_get_data_len());
+
                 __enable_irq();
 
                 if(rfm12b_is_ack_requested())
@@ -200,7 +223,6 @@ static void poll_rx(void)
             {
                 // listen other node - somebody is transmitting
                 debug(":");
-                regenerate_timeout_await_other_node_tx_to();
             }
 
             // debug("[%d] Size: %d\n", rfm12b_get_sender_id(), rfm12b_get_data_len());
@@ -216,45 +238,113 @@ static void poll_rx(void)
 
 void trx_poll(void)
 {
-    if(tx_pending == false)
-    {
-        if(timeout_send_own_hb < HAL_GetTick())
-        {
-            append_hb();
-        }
-    }
-
     switch(state)
     {
-    case AIR_PROTOCOL_STATE_AWAIT_RANDOM_TO_TX:
+#ifdef AIR_PROTOCOL_MASTER
+    case AIR_PROTOCOL_STATE_NODE_SACK:
+    {
+        if(++current_process_node >= NODES_COUNT) current_process_node = 0;
+        if(send_nop(storage[current_process_node].dest_id))
+        {
+#warning "TODO: HB"
+            break;
+        }
+        change_state(AIR_PROTOCOL_STATE_TX);
+    }
+    break;
+
+    case AIR_PROTOCOL_STATE_TX:
+    {
+        if(storage[current_process_node].p_push != storage[current_process_node].p_pull)
+        {
+            storage[current_process_node].p_pull++;
+            if(storage[current_process_node].p_pull >= MSG_COUNT) storage[current_process_node].p_pull = 0;
+
+            if(storage[current_process_node].dest_id == RFM_NET_ID_BROADCAST)
+                trx_send_nack(storage[current_process_node].dest_id,
+                              storage[current_process_node].data[storage[current_process_node].p_pull],
+                              storage[current_process_node].data_len[storage[current_process_node].p_pull]);
+            else
+            {
+                hb_tracker_update_state(storage[current_process_node].dest_id,
+                                        trx_send_ack(storage[current_process_node].dest_id,
+                                                     storage[current_process_node].data[storage[current_process_node].p_pull],
+                                                     storage[current_process_node].data_len[storage[current_process_node].p_pull]));
+            }
+            return;
+        }
+
+        // tx_pending == true
+        {
+            // send_sls(RFM_NET_ID_MASTER);
+            // regenerate_hb_interval();
+            // regenerate_timeout_await_to_tx();
+            // tx_pending = false;
+            change_state(AIR_PROTOCOL_STATE_NODE_SLS);
+        }
+    }
+    break;
+
+    case AIR_PROTOCOL_STATE_NODE_SLS:
+    {
+        debug("SSLS %d\n",storage[current_process_node].dest_id);
+        if(send_sls(storage[current_process_node].dest_id))
+        {
+#warning "TODO: HB"
+            debug("RB\n");
+            change_state(AIR_PROTOCOL_STATE_NODE_SACK);
+            break;
+        }
+        change_state(AIR_PROTOCOL_STATE_RX);
+    }
+    break;
+
+    case AIR_PROTOCOL_STATE_RX:
     {
         poll_rx();
-        if(timeout_await_to_tx < HAL_GetTick())
+#warning "add TO"
+    }
+    break;
+#else
+    case AIR_PROTOCOL_STATE_RX:
+    {
+        poll_rx();
+        if(to_counter_master + MASTER_HB_TIMEOUT < HAL_GetTick())
         {
-            if(tx_pending)
-            {
-                change_state(AIR_PROTOCOL_STATE_TX);
-                send_tx_start();
-            }
+            hb_tracker_update_state(RFM_NET_ID_MASTER, true);
+#warning "Add master ACK & request monitor "
         }
     }
     break;
 
     case AIR_PROTOCOL_STATE_TX:
     {
-        poll_tx();
-    }
-    break;
-
-    case AIR_PROTOCOL_STATE_OTHER_NODE_TX:
-    {
-        poll_rx();
-        if(timeout_await_other_node_tx_to < HAL_GetTick())
+        if(storage[0].p_push != storage[0].p_pull)
         {
-            regenerate_timeout_await_to_tx();
+            storage[0].p_pull++;
+            if(storage[0].p_pull >= MSG_COUNT) storage[0].p_pull = 0;
+
+            if(storage[0].dest_id == RFM_NET_ID_BROADCAST)
+                trx_send_nack(storage[0].dest_id, storage[0].data[storage[0].p_pull], storage[0].data_len[storage[0].p_pull]);
+            else
+            {
+                hb_tracker_update_state(storage[0].dest_id, trx_send_ack(storage[0].dest_id, storage[0].data[storage[0].p_pull], storage[0].data_len[storage[0].p_pull]));
+            }
+            return;
+        }
+
+        // tx_pending == true
+        {
+            send_sle(RFM_NET_ID_MASTER);
+            // regenerate_hb_interval();
+            // regenerate_timeout_await_to_tx();
+            to_counter_master = HAL_GetTick();
+            tx_pending = false;
+            change_state(AIR_PROTOCOL_STATE_RX);
         }
     }
     break;
+#endif
 
     default:
         break;
@@ -281,12 +371,11 @@ void trx_init(void)
 {
     memset(storage, 0, sizeof(storage));
 
-    rfm12b_init(RFM_NET_GATEWAY, OWN_ID);
+    rfm12b_init(RFM_NET_GATEWAY);
     rfm12b_encrypt(rfm_net_key, RFM_NET_KEY_LENGTH);
-    trx_init_node(0, RFM_NET_ID_BROADCAST);
     // rfm12b_sleep();
-    regenerate_hb_interval();
-    regenerate_timeout_await_to_tx();
+    // regenerate_hb_interval();
+    // regenerate_timeout_await_to_tx();
 }
 
 void trx_init_node(uint8_t iterator, uint8_t node_id)
@@ -301,15 +390,9 @@ void something_receiving(void)
 {
     switch(state)
     {
-    case AIR_PROTOCOL_STATE_AWAIT_RANDOM_TO_TX:
+    case AIR_PROTOCOL_STATE_RX:
     {
-        regenerate_timeout_await_to_tx();
-    }
-    break;
-
-    case AIR_PROTOCOL_STATE_OTHER_NODE_TX:
-    {
-        regenerate_timeout_await_other_node_tx_to();
+        // regenerate_timeout_await_to_tx();
     }
     break;
 

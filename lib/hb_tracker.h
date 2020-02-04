@@ -9,10 +9,12 @@ typedef struct
     uint8_t node_id;
     uint32_t timeout_ms;
     uint32_t last_hb_ms;
+    bool is_timeout;
 } hbt_node_t;
 
 hbt_node_t *hb_tracker_init(uint8_t node_id, uint32_t timeout_ms);
 bool hb_tracker_update(uint8_t node_id);
+bool hb_tracker_update_state(uint8_t node_id, bool state);
 bool hb_tracker_is_timeout(const hbt_node_t *node);
 uint32_t hb_tracker_get_timeout(const hbt_node_t *node);
 

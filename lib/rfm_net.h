@@ -15,11 +15,9 @@ extern uint8_t rfm_net_key[RFM_NET_KEY_LENGTH + 1];
 
 enum RFM_NET_PROTOCOL
 {
-    RFM_NET_CMD_NODE_START_TX = 0,
-    RFM_NET_CMD_NODE_STOP_TX,
-    // DON'T USE ID = 0 & ID = 1!
-
-    RFM_NET_CMD_HB = 100,
+    RFM_NET_CMD_NOP = 0, /// NOP cmd
+    RFM_NET_CMD_SLS, /// Slave listen enable
+    RFM_NET_CMD_SLE, /// Slave listen disable
 
     RFM_NET_CMD_STS_HEAD = 10,
     RFM_NET_CMD_LIGHT,

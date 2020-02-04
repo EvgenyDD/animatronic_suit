@@ -23,8 +23,8 @@ bool to_from_head = true;
 
 uint32_t get_random(void){return HAL_RNG_GetRandomNumber(&hrng);}
 
-const uint8_t iterator_head = 1;
-const uint8_t iterator_tail = 2;
+const uint8_t iterator_head = 0;
+const uint8_t iterator_tail = 1;
 
 void init(void)
 {
@@ -101,7 +101,7 @@ void loop(void)
     static uint32_t ctrl_hb = 0;
     if(ctrl_hb < HAL_GetTick())
     {
-        ctrl_hb = HAL_GetTick() + 400;
+        ctrl_hb = HAL_GetTick() + 200;
 
         uint8_t r = 0, g = 200, b = 0;
         uint8_t data[4] = {RFM_NET_CMD_LIGHT, 0, 0, 0};
@@ -139,6 +139,7 @@ static void memcpy_volatile(void *src, const volatile void *dst, size_t size)
 void process_data(uint8_t sender_node_id, const volatile uint8_t *data, uint8_t data_len)
 {
     // debug("RX: %d > Size: %d | %d %d %d %d\n", sender_node_id, data_len, *(data-4), *(data-3),*(data-2),*(data-1));
+    debug("R %d > %d\n", sender_node_id, data[0]);
     if(data_len > 0)
     {
         switch(data[0])

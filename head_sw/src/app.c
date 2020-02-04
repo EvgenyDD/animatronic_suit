@@ -27,12 +27,9 @@ extern uint32_t rx_cnt;
 
 hbt_node_t *hbt_ctrl;
 
-uint32_t get_random(void){return HAL_RNG_GetRandomNumber(&hrng);}
+uint32_t get_random(void) { return HAL_RNG_GetRandomNumber(&hrng); }
 
-const uint8_t iterator_ctrl = 1;
-
-
-    
+const uint8_t iterator_ctrl = 0;
 
 void init(void)
 {
@@ -98,7 +95,7 @@ void loop(void)
     static uint32_t ctr_sts_head = 0;
     if(ctr_sts_head < HAL_GetTick())
     {
-        ctr_sts_head = HAL_GetTick() + 2000;
+        ctr_sts_head = HAL_GetTick() + 1000;
 
         uint8_t data[1 + 4 + 4] = {RFM_NET_CMD_STS_HEAD};
         float vbat = adc_logic_get_vbat();
@@ -116,15 +113,15 @@ void process_data(uint8_t sender_node_id, const volatile uint8_t *data, uint8_t 
     {
         switch(data[0])
         {
-        // case RFM_NET_CMD_HB:
-        // {
-        //     if(data_len == 2)
-        //     {
-        //         bool not_found = hb_tracker_update(sender_node_id);
-        //         // if(not_found) debug("HB unknown %d\n", sender_node_id);
-        //     }
-        // }
-        // break;
+            // case RFM_NET_CMD_HB:
+            // {
+            //     if(data_len == 2)
+            //     {
+            //         bool not_found = hb_tracker_update(sender_node_id);
+            //         // if(not_found) debug("HB unknown %d\n", sender_node_id);
+            //     }
+            // }
+            // break;
 
         case RFM_NET_CMD_LIGHT:
         {

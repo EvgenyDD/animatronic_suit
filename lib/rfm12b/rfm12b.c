@@ -4,6 +4,7 @@
 #include "rfm12b.h"
 #include "debug.h"
 #include "main.h"
+#include "rfm_net.h"
 
 #include <string.h>
 
@@ -138,7 +139,6 @@ static uint32_t seqNum = 0;
 static volatile int8_t rxstate = TXIDLE;
 static volatile uint8_t rxfill = 0;
 static uint8_t networkID = 0;
-static uint8_t own_id = 0;
 
 static volatile bool irq_fired = false;
 
@@ -146,7 +146,6 @@ uint8_t rfm12b_get_sender_id(void) { return RF12_SOURCEID; }
 bool rfm12b_is_ack_requested(void) { return RF12_WANTS_ACK; }
 uint8_t rfm12b_get_data_len(void) { return rf12_buf[3]; }
 uint8_t rfm12b_get_dest_id(void) { return RF12_DESTID; }
-uint8_t rfm12b_get_own_id(void) { return own_id; }
 volatile uint8_t *rfm12b_get_data(void) { return rf12_data; }
 bool rfm12b_is_crc_pass(void) { return rf12_crc == 0; }
 
@@ -301,7 +300,7 @@ static void send_start(uint8_t to_node_id, const void *data, uint8_t data_len, b
     // #pragma GCC diagnostic pop
 
     rf12_hdr1 = to_node_id | (sendACK ? RF12_HDR_ACKCTLMASK : 0);
-    rf12_hdr2 = own_id | (request_ack ? RF12_HDR_ACKCTLMASK : 0);
+    rf12_hdr2 = OWN_ID | (request_ack ? RF12_HDR_ACKCTLMASK : 0);
     if(crypter != 0) crypter(true);
     rf12_crc = 0xFFFF;
     rf12_crc = _crc16_update(rf12_crc, networkID);
@@ -441,10 +440,8 @@ void rfm12b_config(uint8_t sync_pattern)
     DELAY_US(150000);
 }
 
-void rfm12b_init(uint8_t sync_pattern, uint8_t ID)
+void rfm12b_init(uint8_t sync_pattern)
 {
-    own_id = ID;
-
     RFM_SPI->CR1 |= SPI_CR1_SPE; // enable SPI
     PIN_SET(RFM_CS);
 
@@ -470,8 +467,8 @@ bool rfm12b_rx_complete(void)
         rxstate = TXIDLE;
         if(rf12_len > RF12_MAXDATA)
             rf12_crc = 1; // force bad crc if packet length is invalid
-        // if(RF12_DESTID == 0 || RF12_DESTID == own_id)
-        { //if (!(rf12_hdr & RF12_HDR_DST) || (own_id & NODE_ID) == 31 || (rf12_hdr & RF12_HDR_MASK) == (own_id & NODE_ID)) {
+        // if(RF12_DESTID == 0 || RF12_DESTID == OWN_ID)
+        { //if (!(rf12_hdr & RF12_HDR_DST) || (OWN_ID & NODE_ID) == 31 || (rf12_hdr & RF12_HDR_MASK) == (OWN_ID & NODE_ID)) {
             if(rf12_crc == 0 && crypter != 0)
                 crypter(false);
             else
@@ -530,7 +527,7 @@ bool rfm12b_is_ack_received(uint8_t drom_node_id)
 {
     if(rfm12b_rx_complete())
         return rfm12b_is_crc_pass() &&
-               RF12_DESTID == own_id &&
+               RF12_DESTID == OWN_ID &&
                (RF12_SOURCEID == drom_node_id || drom_node_id == 0) &&
                (rf12_hdr1 & RF12_HDR_ACKCTLMASK) &&
                !(rf12_hdr2 & RF12_HDR_ACKCTLMASK);
