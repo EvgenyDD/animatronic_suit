@@ -1,6 +1,8 @@
 #ifndef DEBUG_H
 #define DEBUG_H
 
+#include "debug_common.h"
+
 void debug_init(void);
 
 void debug(char *format, ...);

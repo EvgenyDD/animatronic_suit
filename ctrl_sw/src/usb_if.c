@@ -1,8 +1,8 @@
+#include "air_protocol.h"
 #include "debug.h"
 #include "flash_regions.h"
 #include "flasher_hal.h"
 #include "main.h"
-#include "rfm_net.h"
 #include "serial_suit_protocol.h"
 #include "usbd_cdc_if.h"
 

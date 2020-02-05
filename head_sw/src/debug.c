@@ -1,6 +1,6 @@
 #include "debug.h"
 #include "main.h"
-#include "trx.h"
+#include "air_protocol.h"
 
 #include <stdarg.h>
 #include <stdbool.h>

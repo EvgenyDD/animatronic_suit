@@ -2,13 +2,11 @@
  * Source: https://github.com/LowPowerLab/RFM12B
  **/
 #include "rfm12b.h"
+#include "air_protocol.h" // this include is architecture wrong
 #include "debug.h"
 #include "main.h"
-#include "rfm_net.h"
 
 #include <string.h>
-
-extern void something_receiving(void);
 
 #define RFM_SPI SPI3
 
@@ -542,7 +540,6 @@ void rfm12b_irq_handler(void)
 
     if(rxstate == TXRECV)
     {
-        something_receiving();
         uint8_t in = rfm12b_trx_2b(RFM12B_RX_FIFO_READ); /* note: MAX SPI freq = 2.5MHZ here*/
 
         if(rxfill == 0 && networkID != 0)

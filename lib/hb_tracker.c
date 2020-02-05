@@ -14,6 +14,7 @@ hbt_node_t *hb_tracker_init(uint8_t node_id, uint32_t timeout_ms)
     nodes[nodes_count].timeout_ms = timeout_ms;
     nodes[nodes_count].last_hb_ms = 0;
     nodes[nodes_count].is_timeout = true;
+    nodes[nodes_count].to_count = 0;
 
     nodes_count++;
 
@@ -44,6 +45,12 @@ bool hb_tracker_update_state(uint8_t node_id, bool state)
         }
     }
     return true;
+}
+
+void hb_tracker_update_state_by_iterator(uint8_t iterator, bool state)
+{
+    nodes[iterator].is_timeout = state;
+    if(state) nodes[iterator].to_count++;
 }
 
 bool hb_tracker_is_timeout(const hbt_node_t *node) { return node->is_timeout; }

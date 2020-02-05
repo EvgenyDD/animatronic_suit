@@ -3,7 +3,7 @@
 #include "hb_tracker.h"
 #include "led.h"
 #include "main.h"
-#include "trx.h"
+#include "air_protocol.h"
 
 #include <string.h>
 
@@ -63,8 +63,8 @@ void init(void)
 
     hbt_ctrl = hb_tracker_init(RFM_NET_ID_CTRL, 700 /* 2x HB + 100 ms*/);
 
-    trx_init();
-    trx_init_node(iterator_ctrl, RFM_NET_ID_CTRL);
+    air_protocol_init();
+    air_protocol_init_node(iterator_ctrl, RFM_NET_ID_CTRL);
 }
 
 void loop(void)
@@ -75,7 +75,7 @@ void loop(void)
         prev_tick = HAL_GetTick() + 500;
     }
 
-    trx_poll();
+    air_protocol_poll();
 
     static uint32_t hbtt = 0;
     if(hbtt < HAL_GetTick())
@@ -102,7 +102,7 @@ void loop(void)
         float temp = adc_logic_get_temp();
         memcpy(data + 1, &vbat, 4);
         memcpy(data + 1 + 4, &temp, 4);
-        trx_send_async(iterator_ctrl, data, sizeof(data));
+        air_protocol_send_async(iterator_ctrl, data, sizeof(data));
         // debug_rf("*");
     }
 }
