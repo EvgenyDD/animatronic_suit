@@ -85,7 +85,7 @@
 #define RF12_WANTS_ACK ((rf12_hdr2 & RF12_HDR_ACKCTLMASK) && !(rf12_hdr1 & RF12_HDR_ACKCTLMASK))
 
 /// Max transmit/receive buffer: 4 header + data + 2 crc bytes
-#define RF_MAX (RF12_MAXDATA + 6)
+#define RF_MAX (RFM12B_MAXDATA + 6)
 
 #define PIN_SET(x) x##_GPIO_Port->BSRR = x##_Pin
 #define PIN_CLR(x) x##_GPIO_Port->BSRR = ((uint32_t)(x##_Pin)) << 16
@@ -463,7 +463,7 @@ bool rfm12b_rx_complete(void)
     if(rxstate == TXRECV && (rxfill >= (uint8_t)(rf12_len + 6) || rxfill >= RF_MAX))
     {
         rxstate = TXIDLE;
-        if(rf12_len > RF12_MAXDATA)
+        if(rf12_len > RFM12B_MAXDATA)
             rf12_crc = 1; // force bad crc if packet length is invalid
         // if(RF12_DESTID == 0 || RF12_DESTID == OWN_ID)
         { //if (!(rf12_hdr & RF12_HDR_DST) || (OWN_ID & NODE_ID) == 31 || (rf12_hdr & RF12_HDR_MASK) == (OWN_ID & NODE_ID)) {

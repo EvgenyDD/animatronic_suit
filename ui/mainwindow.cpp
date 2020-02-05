@@ -41,7 +41,10 @@ void MainWindow::timer_update()
 {
     QString log;
     char v;
-    while(q_log.try_pop(v)) log.append(v);
+    while(q_log.try_pop(v)) {
+        if(v == '\n') break;
+        log.append(v);
+    }
     if(log.size())
     {
         ui->logBrowser->append(log);

@@ -118,12 +118,13 @@ private:
         switch(bytes[0])
         {
         case RFM_NET_CMD_DEBUG:
-            PRINT_MSG("DBG: " << Helper::vec_to_string_hex(bytes));
+//            PRINT_MSG("DBG: " << Helper::vec_to_string_hex(bytes));
             //            PRINT_MSG_("RX " << std::string((char*)&bytes[1], bytes.size()-1));
             q_log.push('$');
             q_log.push(' ');
             for(auto i = 1U; i < bytes.size() - 1; i++)
                 q_log.push(static_cast<char>(bytes[i]));
+            q_log.push('\n');
             break;
 
         case RFM_NET_CMD_FLASH:

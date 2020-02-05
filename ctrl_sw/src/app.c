@@ -5,6 +5,7 @@
 #include "main.h"
 #include "air_protocol.h"
 #include "usbd_cdc_if.h"
+#include "rfm12b.h"
 
 #include <string.h>
 
@@ -138,6 +139,7 @@ inline static void memcpy_volatile(void *dst, const volatile void *src, size_t s
     }
 }
 
+static uint8_t dbg_buffer[RFM12B_MAXDATA];
 void process_data(uint8_t sender_node_id, const volatile uint8_t *data, uint8_t data_len)
 {
     // debug("RX: %d > Size: %d | %d %d %d %d\n", sender_node_id, data_len, *(data-4), *(data-3),*(data-2),*(data-1));
@@ -147,10 +149,20 @@ void process_data(uint8_t sender_node_id, const volatile uint8_t *data, uint8_t 
         switch(data[0])
         {
         case RFM_NET_CMD_DEBUG:
-            debug("# ");
-            for(uint8_t i = 1; i < data_len; i++)
-                debug("%c", data[i]);
-            if(data[data_len - 1] != '\n') debug("\n");
+            memcpy_volatile(dbg_buffer, data+1,(size_t)(data_len-1));
+            if(dbg_buffer[data_len-2] != '\n') 
+            {
+                dbg_buffer[data_len-1]='\n';
+                dbg_buffer[data_len-0]='\0';
+            }
+            else
+            {
+                dbg_buffer[data_len-1]='\0';
+            }
+            debug("[TAIL]\t%s\n", dbg_buffer);
+            // for(uint8_t i = 1; i < data_len; i++)
+                // debug("%c", data[i]);
+            // if(data[data_len - 1] != '\n') debug("\n");
             break;
 
         // case RFM_NET_CMD_HB:

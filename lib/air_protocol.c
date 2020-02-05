@@ -62,7 +62,7 @@ static AIR_PROTOCOL_STATE state = AIR_PROTOCOL_STATE_SACK;
 
 static bool periodic_sleep_enable = true;
 
-void air_protocol_set_periodic_sleep(bool state) { periodic_sleep_enable = state; }
+void air_protocol_set_periodic_sleep(bool new_state) { periodic_sleep_enable = new_state; }
 inline static void regenerate_timeout_slave_tx_lost(void) { timeout_slave_tx_lost = HAL_GetTick() + TIMEOUT_SLAVE_TX_LOST; }
 
 #else
@@ -79,7 +79,7 @@ static AIR_PROTOCOL_STATE state = AIR_PROTOCOL_STATE_RX;
 
 typedef struct
 {
-    uint8_t data[MSG_COUNT][RF12_MAXDATA];
+    uint8_t data[MSG_COUNT][RFM12B_MAXDATA];
     uint8_t data_len[MSG_COUNT];
     uint32_t p_push;
     uint32_t p_pull;
@@ -213,7 +213,8 @@ static void poll_rx(void)
             }
             else if(rfm12b_get_dest_id() == OWN_ID)
             {
-                __disable_irq();
+                // __disable_irq();
+                HAL_NVIC_DisableIRQ(EXTI15_10_IRQn);
 
 #ifdef AIR_PROTOCOL_MASTER
                 regenerate_timeout_slave_tx_lost();
@@ -248,7 +249,8 @@ static void poll_rx(void)
 
                 if(precessed == false) process_data(rfm12b_get_sender_id(), rfm12b_get_data(), rfm12b_get_data_len());
 
-                __enable_irq();
+                // __enable_irq();
+                HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 
                 if(rfm12b_is_ack_requested())
                 {
@@ -406,7 +408,7 @@ void air_protocol_poll(void)
 
 void air_protocol_send_async(uint8_t iterator, const uint8_t *payload, uint8_t payload_length)
 {
-    if(iterator < NODES_COUNT && payload_length < RF12_MAXDATA)
+    if(iterator < NODES_COUNT && payload_length < RFM12B_MAXDATA)
     {
         uint8_t next_push = storage[iterator].p_push + 1;
         if(next_push >= MSG_COUNT) next_push = 0;
