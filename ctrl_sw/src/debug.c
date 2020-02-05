@@ -1,7 +1,7 @@
 #include "debug.h"
 #include "main.h"
-#include <serial_suit_protocol.h>
 #include "usbd_cdc_if.h"
+#include <serial_suit_protocol.h>
 
 #include <stdarg.h>
 #include <stdbool.h>
@@ -23,7 +23,7 @@ int buffer_rx_cnt = 0;
 void debug_parse(char *s);
 
 static volatile bool is_tx = false;
-static bool usb_enabled = false;
+static bool usb_enabled = true;
 
 void debug_init(void)
 {
@@ -32,12 +32,12 @@ void debug_init(void)
 
 void debug_disable_usb(void) { usb_enabled = false; }
 
+static char buffer[CON_OUT_BUF_SZ + 1];
 void debug(char *format, ...)
 {
     if(is_tx) return;
     is_tx = true;
 
-    static char buffer[CON_OUT_BUF_SZ + 1];
     va_list ap;
 
     if(hUsbDeviceFS.dev_state == USBD_STATE_CONFIGURED && usb_enabled)
@@ -45,7 +45,7 @@ void debug(char *format, ...)
         va_start(ap, format);
         vsnprintf(buffer + 1, CON_OUT_BUF_SZ - 1, format, ap);
         va_end(ap);
-        buffer[0] = SSP_CMD_DEBUG;
+        buffer[0] = RFM_NET_CMD_DEBUG;
         CDC_Transmit_FS(buffer, strlen(buffer));
     }
     else

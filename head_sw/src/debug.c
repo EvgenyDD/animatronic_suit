@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+extern const uint8_t iterator_ctrl;
 extern UART_HandleTypeDef huart3;
 
 uint32_t rx_cnt = 0;
@@ -56,7 +57,7 @@ void debug_rf(char *format, ...)
     vsnprintf(buffer+1, sizeof(buffer)-1, format, ap);
     va_end(ap);
 
-    // trx_send_nack(RFM_NET_ID_CTRL, buffer, strlen(buffer));
+    air_protocol_send_async(iterator_ctrl, buffer, strlen(buffer));
 
     is_tx = false;
 }

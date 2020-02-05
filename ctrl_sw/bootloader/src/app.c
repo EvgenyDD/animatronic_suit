@@ -5,7 +5,7 @@
 #include <stdbool.h>
 #include <string.h>
 
-bool app_image_present = false, app_present = false;
+bool app_image_present = false, app_present = false, app_image_corrupted = false;
 
 extern CRC_HandleTypeDef hcrc;
 
@@ -132,21 +132,25 @@ void init(void)
     app_present = app_end != ADDR_APP;
 
     app_image_end = seek_flash_start(ADDR_APP_IMAGE, ADDR_APP_IMAGE + LEN_APP_IMAGE - 1);
-    app_image_present = app_image_end != ADDR_APP_IMAGE && *(uint32_t*)ADDR_APP_IMAGE != 0xFFFFFFFF;
+    app_image_corrupted = app_image_end != ADDR_APP_IMAGE;
+    app_image_present = app_image_corrupted && *(uint32_t*)ADDR_APP_IMAGE != 0xFFFFFFFF;
 
-    if(app_present == false && app_image_present == false)
+    if(app_present == false && app_image_corrupted == false)
     {
         countdown_turn_off = 2000;
     }
-
-    else if(app_present && app_image_present == false)
+    else if(app_present && app_image_corrupted == false)
     {
+        if(*(uint32_t *)ADDR_APP_IMAGE != 0xFFFFFFFF)
+        {
+            erase_app_image();
+        }
         goto_app();
     }
-    else if(app_present && app_image_present)
+    else if(app_present && app_image_corrupted)
     {
         bool equal = compare();
-        if(equal == false)
+        if(equal == false && app_image_present)
         {
             copy_image();
             flash_led(1, 250);
@@ -157,9 +161,12 @@ void init(void)
         }
         goto_app();
     }
-    else if(app_present == false && app_image_present)
+    else if(app_present == false && app_image_corrupted)
     {
-        copy_image();
+        if(app_image_present)
+        {
+            copy_image();
+        }
         erase_app_image();
         flash_led(3, 250);
         goto_app();

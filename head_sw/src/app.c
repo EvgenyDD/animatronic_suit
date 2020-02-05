@@ -1,9 +1,11 @@
 #include "adc.h"
 #include "debug.h"
+#include "flash_regions.h"
+#include "flasher_hal.h"
 #include "hb_tracker.h"
 #include "led.h"
 #include "main.h"
-#include "air_protocol.h"
+#include "serial_suit_protocol.h"
 
 #include <string.h>
 
@@ -57,6 +59,9 @@ void init(void)
     __HAL_UART_ENABLE(&huart3);
     __HAL_UART_ENABLE_IT(&huart3, UART_IT_RXNE);
 
+    FLASH_Unlock();
+    FLASH_ClearFlag(FLASH_FLAG_EOP | FLASH_FLAG_OPERR | FLASH_FLAG_WRPERR | FLASH_FLAG_PGAERR | FLASH_FLAG_PGPERR | FLASH_FLAG_PGSERR);
+
     adc_init();
 
     PWR_EN_GPIO_Port->ODR |= PWR_EN_Pin;
@@ -103,9 +108,33 @@ void loop(void)
         memcpy(data + 1, &vbat, 4);
         memcpy(data + 1 + 4, &temp, 4);
         air_protocol_send_async(iterator_ctrl, data, sizeof(data));
+        debug_rf("Hi!");
         // debug_rf("*");
     }
 }
+
+static uint32_t crc32_calc(const uint32_t *buf, uint32_t len)
+{
+    CRC->CR |= CRC_CR_RESET;
+
+    for(uint32_t i = 0; i < len; i++)
+    {
+        CRC->DR = buf[i];
+    }
+
+    return CRC->DR;
+}
+
+inline static void memcpy_volatile(void *dst, const volatile void *src, size_t size)
+{
+    for(uint32_t i = 0; i < size; i++)
+    {
+        *((uint8_t *)dst + i) = *((const volatile uint8_t *)src + i);
+    }
+}
+
+static uint32_t addr_flash, len_flash;
+static uint8_t tx_buf[64];
 
 void process_data(uint8_t sender_node_id, const volatile uint8_t *data, uint8_t data_len)
 {
@@ -132,6 +161,117 @@ void process_data(uint8_t sender_node_id, const volatile uint8_t *data, uint8_t 
                 led_set_gamma(2, data[3]);
             }
         }
+        break;
+
+        case RFM_NET_CMD_REBOOT:
+            HAL_NVIC_SystemReset();
+            break;
+
+        case RFM_NET_CMD_FLASH:
+        {
+            tx_buf[0] = RFM_NET_CMD_FLASH;
+            tx_buf[1] = data[1];
+            if(data_len >= 7) // at least 1 symbol
+            {
+#warning "mistake here"
+                if(((data_len - 6) % 4) == 0)
+                {
+                    len_flash = (uint32_t)(data_len - 6);
+                    memcpy_volatile(&addr_flash, data + 2, 4);
+
+                    switch(data[1])
+                    {
+                    case RFM_NET_ID_HEAD:
+                    {
+                        if(addr_flash < ADDR_APP_IMAGE || addr_flash >= ADDR_APP_IMAGE + LEN_APP_IMAGE)
+                        {
+                            tx_buf[2] = SSP_FLASH_WRONG_ADDRESS;
+                        }
+                        else
+                        {
+                            tx_buf[2] = SSP_FLASH_OK;
+                            if(addr_flash == ADDR_APP_IMAGE)
+                            {
+                                len_flash = 4;
+                                if(data_len != 6 + 4 /*data*/ + 4 /* len */ + 4 /*crc*/)
+                                {
+                                    tx_buf[2] = SSP_FLASH_WRONG_CRC_ADDRESS;
+                                }
+                                else
+                                {
+                                    uint32_t first_word, len_full, crc_ref;
+                                    memcpy_volatile(&first_word, data + 6, 4);
+                                    memcpy_volatile(&len_full, data + 6 + 4, 4);
+                                    memcpy_volatile(&crc_ref, data + 6 + 4 + 4, 4);
+
+                                    if(len_full >= LEN_APP_IMAGE || (len_full % 4) != 0)
+                                    {
+                                        tx_buf[2] = SSP_FLASH_WRONG_FULL_LENGTH;
+                                    }
+                                    else
+                                    {
+                                        CRC->CR |= CRC_CR_RESET;
+                                        CRC->DR = first_word;
+                                        for(uint32_t i = ADDR_APP_IMAGE + 4; i < (ADDR_APP_IMAGE + len_full); i += 4)
+                                        {
+                                            CRC->DR = *(uint32_t *)i;
+                                        }
+                                        if(CRC->DR != crc_ref)
+                                        {
+                                            tx_buf[2] = SSP_FLASH_WRONG_CRC;
+                                        }
+                                    }
+                                }
+                            }
+                            if(tx_buf[2] == SSP_FLASH_OK)
+                            {
+                                for(uint32_t i = 0; i < len_flash; i++)
+                                {
+                                    if(FLASH_ProgramByte(addr_flash + i, data[6 + i]) != FLASH_COMPLETE)
+                                    {
+                                        tx_buf[2] = SSP_FLASH_FAIL;
+                                        break;
+                                    }
+                                    if(*(uint8_t *)(addr_flash + i) != data[6 + i])
+                                    {
+                                        tx_buf[2] = SSP_FLASH_VERIFY_FAIL;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            memcpy(tx_buf + 3, &addr_flash, 4);
+                            air_protocol_send_async(iterator_ctrl, tx_buf, 3 + 4);
+                            break;
+                        }
+
+                        air_protocol_send_async(iterator_ctrl, tx_buf, 3);
+                    }
+                    break;
+
+                    default:
+                    {
+                        tx_buf[2] = SSP_FLASH_UNEXIST;
+                        air_protocol_send_async(iterator_ctrl, tx_buf, 3);
+                    }
+                    break;
+                    }
+                }
+                else
+                {
+                    tx_buf[2] = SSP_FLASH_WRONG_PARAM;
+                    tx_buf[3] = data_len;
+                    air_protocol_send_async(iterator_ctrl, tx_buf, 4);
+                }
+            }
+            else
+            {
+                tx_buf[2] = SSP_FLASH_WRONG_PARAM;
+                tx_buf[3] = data_len;
+                air_protocol_send_async(iterator_ctrl, tx_buf, 4);
+            }
+        }
+        break;
 
         default:
             // debug("Unknown cmd %d\n", data[0]);

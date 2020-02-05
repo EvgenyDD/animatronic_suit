@@ -5,7 +5,7 @@
 #include <stdbool.h>
 #include <string.h>
 
-bool app_image_present = false, app_present = false;
+bool app_image_present = false, app_present = false, app_image_corrupted = false;
 
 extern CRC_HandleTypeDef hcrc;
 
@@ -80,13 +80,13 @@ static void copy_image(void)
     FLASH_Unlock();
     FLASH_ClearFlag(FLASH_FLAG_EOP | FLASH_FLAG_OPERR | FLASH_FLAG_WRPERR | FLASH_FLAG_PGAERR | FLASH_FLAG_PGPERR | FLASH_FLAG_PGSERR);
     FLASH_EraseSector(FLASH_Sector_5, VoltageRange_3);
-    if(app_image_end-ADDR_APP_IMAGE > 0x20000U)
+    if(app_image_end - ADDR_APP_IMAGE > 0x20000U)
         FLASH_EraseSector(FLASH_Sector_6, VoltageRange_3);
 
     FLASH_ClearFlag(FLASH_FLAG_EOP | FLASH_FLAG_OPERR | FLASH_FLAG_WRPERR | FLASH_FLAG_PGAERR | FLASH_FLAG_PGPERR | FLASH_FLAG_PGSERR);
 
     const uint8_t *data = (uint8_t *)ADDR_APP_IMAGE;
-    for(uint32_t i = 0; i <= app_image_end-ADDR_APP_IMAGE; i++)
+    for(uint32_t i = 0; i <= app_image_end - ADDR_APP_IMAGE; i++)
     {
         FLASH_ProgramByte(ADDR_APP + i, data[i]);
     }
@@ -120,7 +120,7 @@ static void erase_app_image(void)
     FLASH_Unlock();
     FLASH_ClearFlag(FLASH_FLAG_EOP | FLASH_FLAG_OPERR | FLASH_FLAG_WRPERR | FLASH_FLAG_PGAERR | FLASH_FLAG_PGPERR | FLASH_FLAG_PGSERR);
     FLASH_EraseSector(FLASH_Sector_7, VoltageRange_3);
-    if(app_image_end-ADDR_APP_IMAGE > 0x20000U)
+    if(app_image_end - ADDR_APP_IMAGE > 0x20000U)
         FLASH_EraseSector(FLASH_Sector_8, VoltageRange_3);
 
     FLASH_ClearFlag(FLASH_FLAG_EOP | FLASH_FLAG_OPERR | FLASH_FLAG_WRPERR | FLASH_FLAG_PGAERR | FLASH_FLAG_PGPERR | FLASH_FLAG_PGSERR);
@@ -132,38 +132,46 @@ void init(void)
     app_present = app_end != ADDR_APP;
 
     app_image_end = seek_flash_start(ADDR_APP_IMAGE, ADDR_APP_IMAGE + LEN_APP_IMAGE - 1);
-    app_image_present = app_image_end != ADDR_APP_IMAGE && *(uint32_t*)ADDR_APP_IMAGE != 0xFFFFFFFF;
+    app_image_corrupted = app_image_end != ADDR_APP_IMAGE;
+    app_image_present = app_image_corrupted && *(uint32_t *)ADDR_APP_IMAGE != 0xFFFFFFFF;
 
-    if(app_present == false && app_image_present == false)
+    if(app_present == false && app_image_corrupted == false)
     {
         countdown_turn_off = 2000;
     }
-
-    else if(app_present && app_image_present == false)
+    else if(app_present && app_image_corrupted == false)
     {
+        if(*(uint32_t *)ADDR_APP_IMAGE != 0xFFFFFFFF)
+        {
+            erase_app_image();
+        }
         goto_app();
     }
-    else if(app_present && app_image_present)
+    else if(app_present && app_image_corrupted)
     {
         bool equal = compare();
-        if(equal == false)
+        if(equal == false && app_image_present)
         {
             copy_image();
-            flash_led(4, 250);
+            flash_led(1, 250);
         }
         {
             erase_app_image();
-            flash_led(1, 250);
+            flash_led(4, 250);
         }
         goto_app();
     }
-    else if(app_present == false && app_image_present)
+    else if(app_present == false && app_image_corrupted)
     {
-        copy_image();
+        if(app_image_present)
+        {
+            copy_image();
+        }
         erase_app_image();
         flash_led(3, 250);
         goto_app();
     }
+    flash_fast = true;
 }
 
 void loop(void)

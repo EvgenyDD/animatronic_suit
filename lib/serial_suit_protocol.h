@@ -1,13 +1,7 @@
 #ifndef SERIAL_SUIT_PROTOCOL_H
 #define SERIAL_SUIT_PROTOCOL_H
 
-enum
-{
-    SSP_CMD_DEBUG = 03,
-
-    SSP_CMD_FLASH = 10,
-    SSP_CMD_REBOOT,
-};
+#include "air_protocol.h"
 
 enum
 {

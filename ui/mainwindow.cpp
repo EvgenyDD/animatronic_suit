@@ -3,7 +3,7 @@
 #include "QDebug"
 #include "tools/helper.h"
 #include "tools/debug_tools.h"
-#include "../lib/rfm_net.h"
+#include "../lib/air_protocol.h"
 
 MainWindow::MainWindow(std::queue_threadsafe<char> &q, Flasher *flasher, QWidget *parent) :
     QMainWindow(parent),
@@ -73,31 +73,31 @@ void MainWindow::on_btn_upd_ctrl_clicked()
         return;
     }
     auto v = file.read();
-    flasher->start(RFM_NET_ID_CTRL, v);
+    flasher->start(RFM_NET_ID_CTRL, v, 3000);
 }
 
 void MainWindow::on_btn_upd_head_clicked()
 {
     save_paths();
-    AnyFile file(ui->fw_path_ctrl->text().toStdString());
+    AnyFile file(ui->fw_path_head->text().toStdString());
     if(file.open_r(true))
     {
         ui->logBrowser->append("Can't open file " + ui->fw_path_head->text());
         return;
     }
     auto v = file.read();
-    flasher->start(RFM_NET_ID_HEAD, v);
+    flasher->start(RFM_NET_ID_HEAD, v, 3000);
 }
 
 void MainWindow::on_btn_upd_tail_clicked()
 {
     save_paths();
-    AnyFile file(ui->fw_path_ctrl->text().toStdString());
+    AnyFile file(ui->fw_path_tail->text().toStdString());
     if(file.open_r(true))
     {
         ui->logBrowser->append("Can't open file " + ui->fw_path_tail->text());
         return;
     }
     auto v = file.read();
-    flasher->start(RFM_NET_ID_TAIL, v);
+    flasher->start(RFM_NET_ID_TAIL, v, 3000);
 }

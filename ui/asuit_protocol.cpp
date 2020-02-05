@@ -112,7 +112,7 @@ int Flasher::flash_process()
         {
             std::vector<uint8_t> data;
             for(uint32_t k = 0; k < 4*14 && k < fw.size()-i; k++) data.push_back(fw[i+k]);
-            if(protocol->flash(id, 0x08060000+i, data))
+            if(protocol->flash(id, 0x08060000+i, data, timeout_set))
             {
                 debug(StringHelper::printf("Flashing ID: %d Failed @%d\n", id, i));
                 flashing_active = false;
@@ -122,8 +122,8 @@ int Flasher::flash_process()
             float percent_now = 100.0f * static_cast<float>(i) / static_cast<float>(fw.size());
             if(percent < percent_now)
             {
-                percent += 10.0f;
-                debug(StringHelper::printf("\t%.1f\%\t %d / %d", static_cast<double>(percent), i, fw.size()));
+                percent += 1.0f;
+                debug(StringHelper::printf("\t%.1f%%\t %d / %d", static_cast<double>(percent), i, fw.size()));
             }
         }
     }
@@ -135,7 +135,7 @@ int Flasher::flash_process()
     PRINT_MSG(data.data.size());
 #else
 #endif
-    if(protocol->flash(id, 0x08060000, data.data))
+    if(protocol->flash(id, 0x08060000, data.data, timeout_set))
     {
         debug(StringHelper::printf("Flashing ID: %d Failed @%d\n", id, 0));
         flashing_active = false;

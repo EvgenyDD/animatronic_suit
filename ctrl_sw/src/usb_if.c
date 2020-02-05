@@ -9,7 +9,11 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+extern const uint8_t iterator_head; 
+extern const uint8_t iterator_tail;
+
 extern USBD_HandleTypeDef hUsbDeviceFS;
+
 
 static uint8_t tx_buf[1024];
 
@@ -36,7 +40,7 @@ void usb_if_rx(uint8_t *buf, uint32_t len)
     {
         switch(buf[0])
         {
-        case SSP_CMD_DEBUG:
+        case RFM_NET_CMD_DEBUG:
             if(len >= 3) // at least 1 symbol
             {
                 switch(buf[1])
@@ -47,11 +51,11 @@ void usb_if_rx(uint8_t *buf, uint32_t len)
                     break;
 
                 case RFM_NET_ID_HEAD:
-                    // TODO
+                    air_protocol_send_async(iterator_head, buf, len);
                     break;
 
                 case RFM_NET_ID_TAIL:
-                    // TODO
+                    air_protocol_send_async(iterator_tail, buf, len);
                     break;
 
                 default:
@@ -60,14 +64,13 @@ void usb_if_rx(uint8_t *buf, uint32_t len)
             }
             break;
 
-        case SSP_CMD_FLASH:
-            debug_disable_usb();
-            // Format: [1b] SSP_CMD_FLASH [1b] node_id [4b] address [xx] data
+        case RFM_NET_CMD_FLASH:
+            // Format: [1b] RFM_NET_CMD_FLASH [1b] node_id [4b] address [xx] data
             if(len >= 7) // at least 1 symbol
             {
                 if(((len - 6) % 4) == 0)
                 {
-                    tx_buf[0] = SSP_CMD_FLASH;
+                    tx_buf[0] = RFM_NET_CMD_FLASH;
                     tx_buf[1] = buf[1];
 
                     uint32_t addr, len_flash = len - 6;
@@ -77,6 +80,7 @@ void usb_if_rx(uint8_t *buf, uint32_t len)
                     {
                     case RFM_NET_ID_CTRL:
                     {
+                        debug_disable_usb();
                         if(addr < ADDR_APP_IMAGE || addr >= ADDR_APP_IMAGE + LEN_APP_IMAGE)
                         {
                             tx_buf[2] = SSP_FLASH_WRONG_ADDRESS;
@@ -144,15 +148,19 @@ void usb_if_rx(uint8_t *buf, uint32_t len)
 
                     case RFM_NET_ID_HEAD:
                     {
-                        tx_buf[2] = SSP_FLASH_UNEXIST;
-                        tx(tx_buf, 3);
+                        air_protocol_set_periodic_sleep(false);
+                        // tx_buf[2] = SSP_FLASH_UNEXIST;
+                        // tx(tx_buf, 3);
+                        air_protocol_send_async(iterator_head, buf, len);
                     }
                     break;
 
                     case RFM_NET_ID_TAIL:
                     {
-                        tx_buf[2] = SSP_FLASH_UNEXIST;
-                        tx(tx_buf, 3);
+                        air_protocol_set_periodic_sleep(false);
+                        // tx_buf[2] = SSP_FLASH_UNEXIST;
+                        // tx(tx_buf, 3);
+                        air_protocol_send_async(iterator_tail, buf, len);
                     }
                     break;
 
@@ -173,7 +181,11 @@ void usb_if_rx(uint8_t *buf, uint32_t len)
             }
             break;
 
-        case SSP_CMD_REBOOT:
+        case RFM_NET_CMD_FLASH_STOP:
+            air_protocol_set_periodic_sleep(true);
+            break;
+
+        case RFM_NET_CMD_REBOOT:
             if(len >= 2)
             {
                 switch(buf[1])
@@ -187,11 +199,11 @@ void usb_if_rx(uint8_t *buf, uint32_t len)
                 break;
 
                 case RFM_NET_ID_HEAD:
-                    // TODO
+                    air_protocol_send_async(iterator_head, buf, len);
                     break;
 
                 case RFM_NET_ID_TAIL:
-                    // TODO
+                    air_protocol_send_async(iterator_tail, buf, len);
                     break;
 
                 default:

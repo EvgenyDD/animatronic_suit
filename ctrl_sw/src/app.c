@@ -4,6 +4,7 @@
 #include "hb_tracker.h"
 #include "main.h"
 #include "air_protocol.h"
+#include "usbd_cdc_if.h"
 
 #include <string.h>
 
@@ -128,11 +129,12 @@ void loop(void)
     cnt++;
 }
 
-static void memcpy_volatile(void *src, const volatile void *dst, size_t size)
+
+inline static void memcpy_volatile(void *dst, const volatile void *src, size_t size)
 {
     for(uint32_t i = 0; i < size; i++)
     {
-        *((uint8_t *)src + i) = *((const volatile uint8_t *)dst + i);
+        *((uint8_t *)dst + i) = *((const volatile uint8_t *)src + i);
     }
 }
 
@@ -171,14 +173,26 @@ void process_data(uint8_t sender_node_id, const volatile uint8_t *data, uint8_t 
                 float vbat, temp;
                 memcpy_volatile(&vbat, (data + 1), 4);
                 memcpy_volatile(&temp, (data + 1 + 4), 4);
-                // debug(DBG_INFO"HD STS: v %.2f | t %.1f\n", vbat, temp);
+                debug(DBG_INFO"HD STS: v %.2f | t %.1f\n", vbat, temp);
             }
             else
                 debug(DBG_ERR"tWrong size RFM_NET_CMD_STS_HEAD %d", data_len);
             break;
 
+        case RFM_NET_CMD_FLASH:
+        {
+            static uint8_t temp_data[CDC_DATA_FS_OUT_PACKET_SIZE];
+            uint32_t sz =data_len < CDC_DATA_FS_OUT_PACKET_SIZE ? data_len : CDC_DATA_FS_OUT_PACKET_SIZE;
+            for(uint32_t i=0; i<sz; i++)
+            {
+                temp_data[i] = data[i];
+            }
+            CDC_Transmit_FS(temp_data, sz);
+        }
+        break;
+
         default:
-            debug(DBG_WARN"tUnknown cmd %d\n", data[0]);
+            debug(DBG_WARN"Unknown cmd %d\n", data[0]);
             break;
         }
     }

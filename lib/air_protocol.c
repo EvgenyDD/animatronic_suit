@@ -60,6 +60,9 @@ static uint32_t timeout_slave_tx_lost = 0;
 static uint32_t timeout_idle = 0;
 static AIR_PROTOCOL_STATE state = AIR_PROTOCOL_STATE_SACK;
 
+static bool periodic_sleep_enable = true;
+
+void air_protocol_set_periodic_sleep(bool state) { periodic_sleep_enable = state; }
 inline static void regenerate_timeout_slave_tx_lost(void) { timeout_slave_tx_lost = HAL_GetTick() + TIMEOUT_SLAVE_TX_LOST; }
 
 #else
@@ -154,7 +157,7 @@ static bool trx_send_ack_single(uint8_t node_id, const uint8_t *payload, uint8_t
         AIR_PROTO_DEBUG(DBG_INFO "A%d<%d(%d)\n", node_id, payload[0], payload_length);
         return false;
     }
-    
+
     if(payload[0] == RFM_NET_CMD_NOP)
     {
         AIR_PROTO_DEBUG(DBG_ERR "SACK %d\n", storage[current_process_node].dest_id);
@@ -341,7 +344,7 @@ void air_protocol_poll(void)
             }
         }
         timeout_idle = HAL_GetTick() + TIMEOUT_IDLE_MS;
-        change_state(AIR_PROTOCOL_STATE_IDLE);
+        change_state(periodic_sleep_enable ? AIR_PROTOCOL_STATE_IDLE : AIR_PROTOCOL_STATE_SACK);
         return;
 
     case AIR_PROTOCOL_STATE_IDLE:
