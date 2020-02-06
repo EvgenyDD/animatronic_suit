@@ -28,6 +28,7 @@ enum RFM_NET_PROTOCOL
     RFM_NET_CMD_FLASH = 50,
     RFM_NET_CMD_FLASH_STOP,
     RFM_NET_CMD_REBOOT,
+    RFM_NET_CMD_OFF,
 };
 
 void air_protocol_init(void);

@@ -9,11 +9,11 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-extern const uint8_t iterator_head; 
+extern const uint8_t iterator_head;
 extern const uint8_t iterator_tail;
 
+extern PCD_HandleTypeDef hpcd_USB_OTG_FS;
 extern USBD_HandleTypeDef hUsbDeviceFS;
-
 
 static uint8_t tx_buf[1024];
 
@@ -48,6 +48,59 @@ void usb_if_rx(uint8_t *buf, uint32_t len)
                 case RFM_NET_ID_CTRL:
                     for(uint32_t i = 2; i < len; i++)
                         debug_rx(buf[i]);
+                    break;
+
+                case RFM_NET_ID_HEAD:
+                    air_protocol_send_async(iterator_head, buf, len);
+                    break;
+
+                case RFM_NET_ID_TAIL:
+                    air_protocol_send_async(iterator_tail, buf, len);
+                    break;
+
+                default:
+                    break;
+                }
+            }
+            break;
+
+        case RFM_NET_CMD_REBOOT:
+            if(len >= 2)
+            {
+                switch(buf[1])
+                {
+                case RFM_NET_ID_CTRL:
+                {
+                    // USB_DevDisconnect(hpcd_USB_OTG_FS.Instance);
+                    // HAL_Delay(100);
+                    HAL_NVIC_SystemReset();
+                }
+                break;
+
+                case RFM_NET_ID_HEAD:
+                    air_protocol_send_async(iterator_head, buf, len);
+                    break;
+
+                case RFM_NET_ID_TAIL:
+                    air_protocol_send_async(iterator_tail, buf, len);
+                    break;
+
+                default:
+                    break;
+                }
+            }
+            break;
+
+        case RFM_NET_CMD_OFF:
+         if(len >= 2)
+            {
+                switch(buf[1])
+                {
+                case RFM_NET_ID_CTRL:
+                    HAL_PWR_DisableWakeUpPin( PWR_WAKEUP_PIN1 );
+                    __HAL_PWR_CLEAR_FLAG(PWR_FLAG_WU);
+                    HAL_PWR_EnableWakeUpPin(PWR_WAKEUP_PIN1);
+                    HAL_PWR_EnterSTANDBYMode();
                     break;
 
                 case RFM_NET_ID_HEAD:
@@ -183,33 +236,6 @@ void usb_if_rx(uint8_t *buf, uint32_t len)
 
         case RFM_NET_CMD_FLASH_STOP:
             air_protocol_set_periodic_sleep(true);
-            break;
-
-        case RFM_NET_CMD_REBOOT:
-            if(len >= 2)
-            {
-                switch(buf[1])
-                {
-                case RFM_NET_ID_CTRL:
-                {
-                    // PCD_HandleTypeDef *hpcd = hUsbDeviceFS.pData;
-                    // USB_DevDisconnect(hpcd->Instance);
-                    HAL_NVIC_SystemReset();
-                }
-                break;
-
-                case RFM_NET_ID_HEAD:
-                    air_protocol_send_async(iterator_head, buf, len);
-                    break;
-
-                case RFM_NET_ID_TAIL:
-                    air_protocol_send_async(iterator_tail, buf, len);
-                    break;
-
-                default:
-                    break;
-                }
-            }
             break;
 
         default:

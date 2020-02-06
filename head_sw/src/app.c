@@ -108,7 +108,7 @@ void loop(void)
         memcpy(data + 1, &vbat, 4);
         memcpy(data + 1 + 4, &temp, 4);
         air_protocol_send_async(iterator_ctrl, data, sizeof(data));
-        debug_rf("Hi!");
+        // debug_rf("Hi!");
         // debug_rf("*");
     }
 }
@@ -167,13 +167,33 @@ void process_data(uint8_t sender_node_id, const volatile uint8_t *data, uint8_t 
             HAL_NVIC_SystemReset();
             break;
 
+        case RFM_NET_CMD_DEBUG:
+            if(data_len >= 3) // at least 1 symbol
+            {
+                if(data[1] == RFM_NET_ID_HEAD)
+                {
+                    for(uint32_t i = 2; i < data_len; i++)
+                        debug_rx(data[i]);
+                }
+            }
+            break;
+
+        case RFM_NET_CMD_OFF:
+            if(data_len >= 2)
+            {
+                if(data[1] == RFM_NET_ID_HEAD)
+                {
+                    PWR_EN_GPIO_Port->ODR &= (uint32_t)(~PWR_EN_Pin);
+                }
+            }
+            break;
+
         case RFM_NET_CMD_FLASH:
         {
             tx_buf[0] = RFM_NET_CMD_FLASH;
             tx_buf[1] = data[1];
             if(data_len >= 7) // at least 1 symbol
             {
-#warning "mistake here"
                 if(((data_len - 6) % 4) == 0)
                 {
                     len_flash = (uint32_t)(data_len - 6);

@@ -46,7 +46,8 @@ private:
 
         interface_collector = std::shared_ptr<InterfaceCollector>(
                     new InterfaceCollector(
-                        std::bind(&RAPI::set_parser_cb, this, std::placeholders::_1)));
+                        std::bind(&RAPI::set_parser_cb, this, std::placeholders::_1),
+                        std::bind(&RAPI::remove_interface_signal, this, std::placeholders::_1)));
 
         setup_interfaces();
 
@@ -75,6 +76,7 @@ private:
 
     AbstractParser *default_parser = nullptr;
     void set_parser_cb(AbstractInterface *iface);
+    void remove_interface_signal(int id);
 };
 
 

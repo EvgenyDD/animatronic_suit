@@ -9,10 +9,10 @@
 
 static int strcmp_(char *s1, char *s2)
 {
-    for(;;)
+    for(int cnt=0;;cnt++)
     {
-        if(*s1 == '\n' || *s1 == '\0') return 1;
-        if(*s2 == '\n' || *s2 == '\0') return 1;
+        // if(*s1 == '\n' || *s1 == '\0') return cnt == 0 ? 0 : 1;
+        if(*s2 == '\n' || *s2 == '\0') return cnt == 0 ? 0 : 1;
         if(*s1 != *s2) return 0;
 
         s1++;

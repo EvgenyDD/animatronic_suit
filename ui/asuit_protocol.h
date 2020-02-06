@@ -18,6 +18,7 @@ private:
         bool received;
         uint8_t id;
         uint8_t ret_code;
+        uint8_t ___dummy;
         uint32_t address;
     } flash_response_t;
 
@@ -50,6 +51,24 @@ public:
         tx_data(c.data);
     }
 
+    void off(uint8_t id)
+    {
+        AnyContainer c;
+        c.append<uint8_t>(RFM_NET_CMD_OFF);
+        c.append<uint8_t>(id);
+        tx_data(c.data);
+    }
+
+    void terminal(uint8_t id, std::string text)
+    {
+        AnyContainer c;
+        c.append<uint8_t>(RFM_NET_CMD_DEBUG);
+        c.append<uint8_t>(id);
+        for(auto &i : text) c.append(i);
+        c.append('\n');
+        tx_data(c.data);
+    }
+
     /**
      * @brief flash
      * @param id
@@ -57,7 +76,7 @@ public:
      * @param bytes
      * @return true if error
      */
-    bool flash(uint8_t id, uint32_t addr, const std::vector<uint8_t> &bytes, int timeout_set)
+    bool flash(uint8_t id, uint32_t addr, const std::vector<uint8_t> &bytes, uint32_t timeout_set)
     {
         AnyContainer c;
         c.append<uint8_t>(RFM_NET_CMD_FLASH);
@@ -152,7 +171,7 @@ private:
         break;
 
         default:
-            PRINT_MSG("Unknown CMD: " << std::to_string((int)bytes[0]) << " len: " << std::to_string(bytes.size() - 1));
+            PRINT_MSG("Unknown CMD: " << std::to_string(static_cast<int>(bytes[0])) << " len: " << std::to_string(bytes.size() - 1));
             //            for(uint32_t i=0; i<bytes.size(); i++)
             //            {
             //                PRINT_MSG("\t" << (int)bytes[i]);
@@ -169,6 +188,7 @@ private:
         {
             q_log.push(i);
         }
+        q_log.push('\n');
     }
 };
 
@@ -179,6 +199,7 @@ public:
     {
     }
     void set_protocol(ASuitProtocol *proto) { protocol = proto; }
+    ASuitProtocol &get_protocol() { return *protocol; }
     void start(uint8_t _id, std::vector<uint8_t> &_fw, int timeout_ms)
     {
         if(flashing_active)
@@ -203,6 +224,7 @@ public:
         {
             q_log.push(i);
         }
+        q_log.push('\n');
     }
 
 private:

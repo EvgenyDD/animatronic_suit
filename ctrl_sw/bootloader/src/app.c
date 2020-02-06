@@ -145,6 +145,7 @@ void init(void)
         {
             erase_app_image();
         }
+        HAL_Delay(800);
         goto_app();
     }
     else if(app_present && app_image_corrupted)

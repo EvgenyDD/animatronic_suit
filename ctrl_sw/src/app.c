@@ -1,11 +1,11 @@
 #include "adc.h"
+#include "air_protocol.h"
 #include "debug.h"
 #include "flasher_hal.h"
 #include "hb_tracker.h"
 #include "main.h"
-#include "air_protocol.h"
-#include "usbd_cdc_if.h"
 #include "rfm12b.h"
+#include "usbd_cdc_if.h"
 
 #include <string.h>
 
@@ -23,10 +23,11 @@ hbt_node_t *hbt_head;
 
 bool to_from_head = true;
 
-uint32_t get_random(void){return HAL_RNG_GetRandomNumber(&hrng);}
+uint32_t get_random(void) { return HAL_RNG_GetRandomNumber(&hrng); }
 
 const uint8_t iterator_head = 0;
 const uint8_t iterator_tail = 1;
+
 
 void init(void)
 {
@@ -74,7 +75,6 @@ void loop(void)
 
     air_protocol_poll();
 
-
     static uint32_t prev_ticke = 0;
 
     if(prev_ticke < HAL_GetTick())
@@ -111,7 +111,7 @@ void loop(void)
         ptr++;
         if(ptr >= 4) ptr = 1;
         data[ptr] = 200;
-        air_protocol_send_async(iterator_head, data, sizeof(data));
+        // air_protocol_send_async(iterator_head, data, sizeof(data));
 
         // static uint32_t fail_cnt = 0;
         // if(sts) fail_cnt++;
@@ -124,12 +124,11 @@ void loop(void)
     if(prev < HAL_GetTick())
     {
         prev = HAL_GetTick() + 8000;
-        debug(DBG_INFO"STAT: %d\n", cnt>>3);
+        debug(DBG_INFO "STAT: %d\n", cnt >> 3);
         cnt = 0;
     }
     cnt++;
 }
-
 
 inline static void memcpy_volatile(void *dst, const volatile void *src, size_t size)
 {
@@ -149,35 +148,35 @@ void process_data(uint8_t sender_node_id, const volatile uint8_t *data, uint8_t 
         switch(data[0])
         {
         case RFM_NET_CMD_DEBUG:
-            memcpy_volatile(dbg_buffer, data+1,(size_t)(data_len-1));
-            if(dbg_buffer[data_len-2] != '\n') 
+            memcpy_volatile(dbg_buffer, data + 1, (size_t)(data_len - 1));
+            if(dbg_buffer[data_len - 2] != '\n')
             {
-                dbg_buffer[data_len-1]='\n';
-                dbg_buffer[data_len-0]='\0';
+                dbg_buffer[data_len - 1] = '\n';
+                dbg_buffer[data_len - 0] = '\0';
             }
             else
             {
-                dbg_buffer[data_len-1]='\0';
+                dbg_buffer[data_len - 1] = '\0';
             }
             debug("[TAIL]\t%s\n", dbg_buffer);
             // for(uint8_t i = 1; i < data_len; i++)
-                // debug("%c", data[i]);
+            // debug("%c", data[i]);
             // if(data[data_len - 1] != '\n') debug("\n");
             break;
 
-        // case RFM_NET_CMD_HB:
-        // {
-        //     if(data_len == 2)
-        //     {
-        //         bool not_found = hb_tracker_update(sender_node_id);
-        //         if(not_found) debug("HB unknown %d\n", sender_node_id);
-        //         if(sender_node_id == RFM_NET_ID_HEAD)
-        //         {
-        //             to_from_head = data[1];
-        //         }
-        //     }
-        // }
-        // break;
+            // case RFM_NET_CMD_HB:
+            // {
+            //     if(data_len == 2)
+            //     {
+            //         bool not_found = hb_tracker_update(sender_node_id);
+            //         if(not_found) debug("HB unknown %d\n", sender_node_id);
+            //         if(sender_node_id == RFM_NET_ID_HEAD)
+            //         {
+            //             to_from_head = data[1];
+            //         }
+            //     }
+            // }
+            // break;
 
         case RFM_NET_CMD_STS_HEAD:
             if(data_len == 1 + 4 + 4)
@@ -185,17 +184,17 @@ void process_data(uint8_t sender_node_id, const volatile uint8_t *data, uint8_t 
                 float vbat, temp;
                 memcpy_volatile(&vbat, (data + 1), 4);
                 memcpy_volatile(&temp, (data + 1 + 4), 4);
-                debug(DBG_INFO"HD STS: v %.2f | t %.1f\n", vbat, temp);
+                debug(DBG_INFO "HD STS: v %.2f | t %.1f\n", vbat, temp);
             }
             else
-                debug(DBG_ERR"tWrong size RFM_NET_CMD_STS_HEAD %d", data_len);
+                debug(DBG_ERR "tWrong size RFM_NET_CMD_STS_HEAD %d", data_len);
             break;
 
         case RFM_NET_CMD_FLASH:
         {
             static uint8_t temp_data[CDC_DATA_FS_OUT_PACKET_SIZE];
-            uint32_t sz =data_len < CDC_DATA_FS_OUT_PACKET_SIZE ? data_len : CDC_DATA_FS_OUT_PACKET_SIZE;
-            for(uint32_t i=0; i<sz; i++)
+            uint32_t sz = data_len < CDC_DATA_FS_OUT_PACKET_SIZE ? data_len : CDC_DATA_FS_OUT_PACKET_SIZE;
+            for(uint32_t i = 0; i < sz; i++)
             {
                 temp_data[i] = data[i];
             }
@@ -204,7 +203,7 @@ void process_data(uint8_t sender_node_id, const volatile uint8_t *data, uint8_t 
         break;
 
         default:
-            debug(DBG_WARN"Unknown cmd %d\n", data[0]);
+            debug(DBG_WARN "Unknown cmd %d\n", data[0]);
             break;
         }
     }

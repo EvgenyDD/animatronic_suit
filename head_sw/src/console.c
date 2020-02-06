@@ -12,10 +12,10 @@
 
 static int strcmp_(char *s1, char *s2)
 {
-    for(;;)
+    for(int cnt=0;;cnt++)
     {
-        if(*s1 == '\n' || *s1 == '\0') return 1;
-        if(*s2 == '\n' || *s2 == '\0') return 1;
+        // if(*s1 == '\n' || *s1 == '\0') return cnt == 0 ? 0 : 1;
+        if(*s2 == '\n' || *s2 == '\0') return cnt == 0 ? 0 : 1;
         if(*s1 != *s2) return 0;
 
         s1++;
@@ -37,18 +37,18 @@ void debug_parse(char *s)
 {
     if(strcmp_(s, "info"))
     {
-        // debug("Popadalovo\n");
+        // debug_rf("Popadalovo\n");
 
         // unsigned int state = 0;
 
         // int c = sscanf(&s[find_space(s)], "%u", &state);
         // if(c > 0)
         // {
-        //     debug("YEAH %d\n", state);
+        //     debug_rf("YEAH %d\n", state);
         // }
         servo_print();
         adc_print();
-        debug("Btn: %d\n", BTN_SNS_GPIO_Port->IDR & BTN_SNS_Pin ? 1 : 0);
+        debug_rf("Btn: %d\n", BTN_SNS_GPIO_Port->IDR & BTN_SNS_Pin ? 1 : 0);
     }
     else if(strcmp_(s, "servo"))
     {
@@ -57,11 +57,11 @@ void debug_parse(char *s)
         int c = sscanf(&s[find_space(s)], "%u %u", &servo, &val);
         if(c == 2)
         {
-            debug("Set Servo %d to %d\n", servo, val);
+            debug_rf("Set Servo %d to %d\n", servo, val);
             servo_set(servo, val);
         }
         else
-            debug("servo: fail Input\n");
+            debug_rf("servo: fail Input\n");
     }
     else if(strcmp_(s, "fan"))
     {
@@ -70,11 +70,12 @@ void debug_parse(char *s)
         int c = sscanf(&s[find_space(s)], "%u %u", &fan, &val);
         if(c == 2)
         {
-            debug("Set Fan %d to %d\n", fan, val);
+            val = val%100;
+            debug_rf("Set Fan %d to %d\n", fan, val);
             fan_set(fan, val);
         }
         else
-            debug("fan: fail Input\n");
+            debug_rf("fan: fail Input\n");
     }
     else if(strcmp_(s, "led"))
     {
@@ -83,14 +84,15 @@ void debug_parse(char *s)
         int c = sscanf(&s[find_space(s)], "%u %u", &led, &val);
         if(c == 2)
         {
-            debug("Set LED %d to %d\n", led, val);
+            val = val%100;
+            debug_rf("Set LED %d to %d\n", led, val);
             led_set(led, val);
         }
         else
-            debug("LED: fail Input\n");
+            debug_rf("LED: fail Input\n");
     }
     else
     {
-        debug("Not Found!\n");
+        debug_rf("Not Found!\n");
     }
 }

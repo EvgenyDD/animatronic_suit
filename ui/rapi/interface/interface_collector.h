@@ -13,8 +13,10 @@
 class InterfaceCollector : public EventCounter
 {
 public:
-    InterfaceCollector(std::function<void(AbstractInterface*)> set_parser_cb) :
-                                                                                 set_parser_cb(set_parser_cb)
+    InterfaceCollector(std::function<void(AbstractInterface*)> set_parser_cb,
+                       std::function<void(int)> remove_interface_signal) :
+        set_parser_cb(set_parser_cb),
+        remove_interface_signal(remove_interface_signal)
     {
         PRINT_CTOR();
         pipe_iface = ContentProvider::get_instance().create_pipe<RapiTypes::MsgIfaceInfo>(ContentProvider::common_interface);
@@ -58,6 +60,7 @@ public:
                     ContentProvider::get_instance().append_data<RapiTypes::MsgIfaceInfo>(pipe_iface, info);
                     PRINT_MSG("[-I]: {" << (*it)->get_connect_id() <<
                               "} " << (*it)->get_name() << " HB: " << (*it)->getHb());
+                    remove_interface_signal(info.iface_id);
                     it = interfaces.erase(it);
                     increment_event_counter();
                 }
@@ -85,6 +88,7 @@ public:
     template<class Interface, class Parser>
     void append_interface(uint32_t timeoutMs, std::string &&connectId, std::string &&name, AbstractSerializer *p_ser)
     {
+        (void)p_ser;
         std::lock_guard<std::mutex> lock(list_mutex);
 
         auto iterator = std::find_if( std::begin(interfaces),
@@ -282,6 +286,7 @@ private:
     }
 
     std::function<void(AbstractInterface*)> set_parser_cb;
+    std::function<void(int)> remove_interface_signal;
     basic_thread thrInterfaceSupervisorDelete;
 
     std::mutex list_mutex;

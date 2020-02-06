@@ -32,9 +32,9 @@ void debug_init(void)
 
 void debug_disable_usb(void) { usb_enabled = false; }
 
-uint32_t  USBD_CDC_Busy(void)
-{      
-  USBD_CDC_HandleTypeDef   *hcdc = (USBD_CDC_HandleTypeDef*) hUsbDeviceFS.pClassData;
+uint32_t USBD_CDC_Busy(void)
+{
+    USBD_CDC_HandleTypeDef *hcdc = (USBD_CDC_HandleTypeDef *)hUsbDeviceFS.pClassData;
     return hcdc->TxState;
 }
 
@@ -52,14 +52,19 @@ void debug(char *format, ...)
         vsnprintf(buffer + 1, CON_OUT_BUF_SZ - 1, format, ap);
         va_end(ap);
         buffer[0] = RFM_NET_CMD_DEBUG;
-        CDC_Transmit_FS(buffer, strlen(buffer));
+
         uint32_t to = HAL_GetTick() + 50;
-        while(USBD_CDC_Busy()) {
-            if(hUsbDeviceFS.dev_state != USBD_STATE_CONFIGURED || to < HAL_GetTick())break;
+        while(USBD_CDC_Busy())
+        {
+            if(hUsbDeviceFS.dev_state != USBD_STATE_CONFIGURED || to < HAL_GetTick())
+                goto SEND_HW;
         }
+        if(to < HAL_GetTick()) goto SEND_HW;
+        CDC_Transmit_FS(buffer, strlen(buffer));
     }
     else
     {
+    SEND_HW:
         va_start(ap, format);
         vsnprintf(buffer, CON_OUT_BUF_SZ, format, ap);
         va_end(ap);

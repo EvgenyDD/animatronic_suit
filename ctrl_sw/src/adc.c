@@ -33,7 +33,7 @@ void adc_print(void)
 {
     for(uint32_t i = 0; i < ADC_CH_NUM; i++)
     {
-        debug("ADC: %d %d\n", i, adc_get_raw(i));
+        debug("ADC #%d: %d\n", i, adc_get_raw(i));
     }
 }
 
