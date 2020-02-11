@@ -128,6 +128,13 @@ void Serial::SerialImpl::reconfigurePort()
         THROW(IOException, "Error getting the serial port state.");
     }
 
+#if 0
+    PRINT_MSG("Current settings:");
+    PRINT_MSG((int)dcbSerialParams.BaudRate);
+    PRINT_MSG((int)dcbSerialParams.ByteSize);
+    PRINT_MSG((int)dcbSerialParams.Parity);
+    PRINT_MSG((int)dcbSerialParams.StopBits);
+
     // setup baud rate
     switch(baudrate_)
     {
@@ -290,13 +297,15 @@ void Serial::SerialImpl::reconfigurePort()
         dcbSerialParams.fOutX = false;
         dcbSerialParams.fInX = false;
     }
-
+#endif
     // activate settings
-    if(!SetCommState(fd_, &dcbSerialParams))
-    {
-        CloseHandle(fd_);
-        THROW(IOException, "Error setting serial port settings.");
-    }
+//    if(!SetCommState(fd_, &dcbSerialParams))
+//    {
+//        CloseHandle(fd_);
+//        DWORD create_file_err = GetLastError();
+//        std::string err = "Error setting serial port settings." + std::to_string(create_file_err);
+//        THROW(IOException, err.c_str());
+//    }
 
     // Setup timeouts
     COMMTIMEOUTS timeouts;

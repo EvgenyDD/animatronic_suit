@@ -3,7 +3,7 @@
 
 bool fan_set(uint8_t fan, uint32_t value)
 {
-    if(value > 100) value = 100;
+    if(value > 99) value = 99;
     __IO uint32_t *ptr[] = {
         &TIM12->CCR1,
         &TIM12->CCR2};

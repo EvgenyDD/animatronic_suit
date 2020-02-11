@@ -1,9 +1,12 @@
 #include "adc.h"
 #include "air_protocol.h"
+#include "debounce.h"
 #include "debug.h"
 #include "flasher_hal.h"
 #include "hb_tracker.h"
+#include "helper.h"
 #include "main.h"
+#include "power.h"
 #include "rfm12b.h"
 #include "usbd_cdc_if.h"
 
@@ -28,9 +31,14 @@ uint32_t get_random(void) { return HAL_RNG_GetRandomNumber(&hrng); }
 const uint8_t iterator_head = 0;
 const uint8_t iterator_tail = 1;
 
+static button_ctrl_t btn[4][3];
+
+static bool btn_pwr_off_long_press = false;
 
 void init(void)
 {
+    for(uint32_t i=0; i<4; i++) for(uint32_t k=0; k<3; k++) debounce_init(&btn[i][k], 250, 800);
+
     debug_init();
     adc_init();
 
@@ -46,6 +54,14 @@ void init(void)
 
 void loop(void)
 {
+    // time diff
+    static uint32_t time_ms_prev = 0;
+    uint32_t time_ms_now = HAL_GetTick();
+    uint32_t diff_ms = time_ms_now < time_ms_prev
+                           ? 0xFFFFFFFF + time_ms_now - time_ms_prev
+                           : time_ms_now - time_ms_prev;
+    time_ms_prev = time_ms_now;
+    
     static uint32_t prev_tick = 0;
 
     if(prev_tick < HAL_GetTick())
@@ -72,6 +88,37 @@ void loop(void)
             request_ack = !(sendSize % 3); //request ACK every 3rd xmission
         }
     }
+    
+    if(btn_pwr_off_long_press)LED0_GPIO_Port->ODR |= LED0_Pin;
+
+    // btn 
+    {
+        debounce_cb(&btn[0][0], B0_WKUP_GPIO_Port->IDR & B0_WKUP_Pin, diff_ms);
+        debounce_cb(&btn[0][1], !(B1_GPIO_Port->IDR & B1_Pin), diff_ms);
+        debounce_cb(&btn[0][2], !(B2_GPIO_Port->IDR & B2_Pin), diff_ms);
+
+        debounce_cb(&btn[1][0], !(B3_GPIO_Port->IDR & B3_Pin), diff_ms);
+        debounce_cb(&btn[1][1], !(B4_GPIO_Port->IDR & B4_Pin), diff_ms);
+        debounce_cb(&btn[1][2], !(B5_GPIO_Port->IDR & B5_Pin), diff_ms);
+
+        debounce_cb(&btn[2][0], !(B6_GPIO_Port->IDR & B6_Pin), diff_ms);
+        debounce_cb(&btn[2][1], !(B7_GPIO_Port->IDR & B7_Pin), diff_ms);
+        debounce_cb(&btn[2][2], !(B8_GPIO_Port->IDR & B8_Pin), diff_ms);
+
+        debounce_cb(&btn[3][0], !(B9_GPIO_Port->IDR & B9_Pin), diff_ms);
+        debounce_cb(&btn[3][1], !(B10_GPIO_Port->IDR & B10_Pin), diff_ms);
+        debounce_cb(&btn[3][2], !(B11_GPIO_Port->IDR & B11_Pin), diff_ms);
+    }
+
+    // off button
+    {
+        if(btn[0][0].pressed_shot_long) btn_pwr_off_long_press = true;
+        if(btn[0][0].unpressed_shot && btn_pwr_off_long_press) pwr_sleep();
+    }
+
+    for(uint32_t i=0; i<4; i++) for(uint32_t k=0; k<3; k++) if(btn[i][k].pressed_shot) debug(DBG_INFO "Btn %d %d pressed\n", i, k);
+    for(uint32_t i=0; i<4; i++) for(uint32_t k=0; k<3; k++) if(btn[i][k].pressed_shot_long) debug(DBG_INFO "Btn %d %d pressed long\n", i, k);
+    for(uint32_t i=0; i<4; i++) for(uint32_t k=0; k<3; k++) if(btn[i][k].unpressed_shot) debug(DBG_INFO "Btn %d %d unpressed\n", i, k);
 
     air_protocol_poll();
 
@@ -184,10 +231,11 @@ void process_data(uint8_t sender_node_id, const volatile uint8_t *data, uint8_t 
                 float vbat, temp;
                 memcpy_volatile(&vbat, (data + 1), 4);
                 memcpy_volatile(&temp, (data + 1 + 4), 4);
-                debug(DBG_INFO "HD STS: v %.2f | t %.1f\n", vbat, temp);
+                debug(DBG_INFO "HD STS: %.2fV (%.1f%%) | t %.1f\n",
+                    vbat,
+                    map_float(vbat, 3.1f * 2.f, 4.18f * 2.f, 0, 100.f),
+                    temp);
             }
-            else
-                debug(DBG_ERR "tWrong size RFM_NET_CMD_STS_HEAD %d", data_len);
             break;
 
         case RFM_NET_CMD_FLASH:

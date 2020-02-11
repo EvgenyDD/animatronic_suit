@@ -27,7 +27,7 @@ public:
         try
         {
             std::this_thread::sleep_for(std::chrono::milliseconds(100)); // to stabilize connection
-            serialPort.reset(new serial::Serial(get_connect_id(), 115200, serial::Timeout::simpleTimeout(0)));
+            serialPort.reset(new serial::Serial(get_connect_id()/*, 9600, serial::Timeout::simpleTimeout(0)*/));
 
             success_init = true;
         }

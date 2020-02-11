@@ -3,6 +3,7 @@
 #include "fan.h"
 #include "led.h"
 #include "main.h"
+#include "power.h"
 #include "servo.h"
 
 #include <stdarg.h>
@@ -12,7 +13,7 @@
 
 static int strcmp_(char *s1, char *s2)
 {
-    for(int cnt=0;;cnt++)
+    for(int cnt = 0;; cnt++)
     {
         // if(*s1 == '\n' || *s1 == '\0') return cnt == 0 ? 0 : 1;
         if(*s2 == '\n' || *s2 == '\0') return cnt == 0 ? 0 : 1;
@@ -22,7 +23,7 @@ static int strcmp_(char *s1, char *s2)
         s2++;
     }
 }
- 
+
 static int find_space(char *s)
 {
     char *ss = s;
@@ -48,7 +49,7 @@ void debug_parse(char *s)
         // }
         servo_print();
         adc_print();
-        debug_rf("Btn: %d\n", BTN_SNS_GPIO_Port->IDR & BTN_SNS_Pin ? 1 : 0);
+        debug_rf("Btn: %d\n", is_btn_pressed());
     }
     else if(strcmp_(s, "servo"))
     {
@@ -70,7 +71,7 @@ void debug_parse(char *s)
         int c = sscanf(&s[find_space(s)], "%u %u", &fan, &val);
         if(c == 2)
         {
-            val = val%100;
+            val = val % 100;
             debug_rf("Set Fan %d to %d\n", fan, val);
             fan_set(fan, val);
         }
@@ -84,7 +85,7 @@ void debug_parse(char *s)
         int c = sscanf(&s[find_space(s)], "%u %u", &led, &val);
         if(c == 2)
         {
-            val = val%100;
+            val = val % 100;
             debug_rf("Set LED %d to %d\n", led, val);
             led_set(led, val);
         }

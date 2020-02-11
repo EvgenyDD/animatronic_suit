@@ -1,13 +1,17 @@
 #include "adc.h"
+#include "debounce.h"
 #include "debug.h"
 #include "flash_regions.h"
 #include "flasher_hal.h"
 #include "hb_tracker.h"
 #include "led.h"
 #include "main.h"
+#include "power.h"
 #include "serial_suit_protocol.h"
 
 #include <string.h>
+
+#define MASTER_TO_MS_SHUTDOWN 10000
 
 extern ADC_HandleTypeDef hadc1;
 extern DMA_HandleTypeDef hdma_adc1;
@@ -33,8 +37,13 @@ uint32_t get_random(void) { return HAL_RNG_GetRandomNumber(&hrng); }
 
 const uint8_t iterator_ctrl = 0;
 
+static button_ctrl_t btn_pwr;
+
 void init(void)
 {
+    debounce_init(&btn_pwr, 200, 1000);
+    btn_pwr.pressed = true;
+
     HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
     HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_2);
     HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_3);
@@ -64,7 +73,7 @@ void init(void)
 
     adc_init();
 
-    PWR_EN_GPIO_Port->ODR |= PWR_EN_Pin;
+    pwr_enable();
 
     hbt_ctrl = hb_tracker_init(RFM_NET_ID_CTRL, 700 /* 2x HB + 100 ms*/);
 
@@ -74,10 +83,56 @@ void init(void)
 
 void loop(void)
 {
+    // time diff
+    static uint32_t time_ms_prev = 0;
+    uint32_t time_ms_now = HAL_GetTick();
+    uint32_t diff_ms = time_ms_now < time_ms_prev
+                           ? 0xFFFFFFFF + time_ms_now - time_ms_prev
+                           : time_ms_now - time_ms_prev;
+    time_ms_prev = time_ms_now;
+
     static uint32_t prev_tick = 0;
     if(prev_tick < HAL_GetTick())
     {
         prev_tick = HAL_GetTick() + 500;
+    }
+
+    // btn
+    {
+        static bool was_unpressed = false;
+        debounce_cb(&btn_pwr, is_btn_pressed(), diff_ms);
+        if(btn_pwr.pressed_shot && was_unpressed) pwr_disable();
+        if(btn_pwr.unpressed_shot) was_unpressed = true;
+    }
+
+    // master timeout
+    {
+        static uint32_t master_to = 0;
+
+        if(hb_tracker_is_timeout(hbt_ctrl)) master_to += diff_ms;
+        else master_to = 0;
+
+        if(master_to > MASTER_TO_MS_SHUTDOWN) pwr_disable();
+    }
+
+    // low vbat
+    {
+        if(adc_logic_get_vbat() < 3.1f * 2.f)
+        {
+            led_set(0,200);
+            led_set(1,0);
+            led_set(2,0);
+
+            for(uint32_t i=0; i<3; i++)
+            {
+                led_set(0,0);
+                HAL_Delay(500);
+                
+                led_set(0,200);
+                HAL_Delay(500);
+            }
+            pwr_disable();
+        }
     }
 
     air_protocol_poll();
@@ -183,7 +238,7 @@ void process_data(uint8_t sender_node_id, const volatile uint8_t *data, uint8_t 
             {
                 if(data[1] == RFM_NET_ID_HEAD)
                 {
-                    PWR_EN_GPIO_Port->ODR &= (uint32_t)(~PWR_EN_Pin);
+                    pwr_disable();
                 }
             }
             break;

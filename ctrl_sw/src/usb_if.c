@@ -3,6 +3,7 @@
 #include "flash_regions.h"
 #include "flasher_hal.h"
 #include "main.h"
+#include "power.h"
 #include "serial_suit_protocol.h"
 #include "usbd_cdc_if.h"
 
@@ -97,10 +98,7 @@ void usb_if_rx(uint8_t *buf, uint32_t len)
                 switch(buf[1])
                 {
                 case RFM_NET_ID_CTRL:
-                    HAL_PWR_DisableWakeUpPin( PWR_WAKEUP_PIN1 );
-                    __HAL_PWR_CLEAR_FLAG(PWR_FLAG_WU);
-                    HAL_PWR_EnableWakeUpPin(PWR_WAKEUP_PIN1);
-                    HAL_PWR_EnterSTANDBYMode();
+                    pwr_sleep();
                     break;
 
                 case RFM_NET_ID_HEAD:

@@ -449,6 +449,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
+  /*Configure GPIO pin : B0_WKUP_Pin */
+  GPIO_InitStruct.Pin = B0_WKUP_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  HAL_GPIO_Init(B0_WKUP_GPIO_Port, &GPIO_InitStruct);
+
   /*Configure GPIO pins : LED0_Pin CHRG_EN_Pin */
   GPIO_InitStruct.Pin = LED0_Pin|CHRG_EN_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
