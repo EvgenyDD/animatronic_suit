@@ -50,3 +50,5 @@ void adc_drv_conv_complete_full(void)
     adc_sel = ADC_CH_NUM;
     // filter_values();
 }
+
+float adc_drv_get_vbat(void) {return (float)adc_get_raw(ADC_SAIN_VBAT)/4095.f*3.3f*(1.f+1000.f/470.f);}

@@ -147,6 +147,15 @@ void loop(void)
         }
     }
 
+    if(CHRG_STS_GPIO_Port->IDR & CHRG_STS_Pin)
+        {
+            LED4_GPIO_Port->ODR |= LED4_Pin;
+        }
+        else
+        {
+            LED4_GPIO_Port->ODR &= ~LED4_Pin;
+        }
+
     static uint32_t ctrl_hb = 0;
     if(ctrl_hb < HAL_GetTick())
     {
@@ -171,7 +180,10 @@ void loop(void)
     if(prev < HAL_GetTick())
     {
         prev = HAL_GetTick() + 8000;
-        debug(DBG_INFO "STAT: %d\n", cnt >> 3);
+        CHRG_EN_GPIO_Port->ODR &= ~CHRG_EN_Pin;
+        HAL_Delay(100);
+        debug(DBG_INFO "STAT: %d | %.3fV\n", cnt >> 3, adc_drv_get_vbat());
+        CHRG_EN_GPIO_Port->ODR |= CHRG_EN_Pin;
         cnt = 0;
     }
     cnt++;
