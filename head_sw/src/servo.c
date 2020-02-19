@@ -4,6 +4,8 @@
 
 #include <string.h>
 
+#include "adc.h" // for debug
+
 #define MAX_POINTS 64
 move_point_t points[SERVO_COUNT][MAX_POINTS];
 uint32_t points_push[SERVO_COUNT];
@@ -24,6 +26,7 @@ typedef struct
     uint16_t pos_start;
     uint16_t pos_last;
     uint32_t time_start;
+    uint32_t time_print_state; // for debug only
     uint32_t time_end;
 } servo_t;
 
@@ -37,6 +40,24 @@ static __IO uint32_t *const ptr[SERVO_COUNT] = {
     &TIM4->CCR1,
     &TIM4->CCR2,
     &TIM4->CCR3};
+
+static inline uint16_t get_approximation(float servo, float adc)
+{
+    /**/ if(servo == SERVO_EAR_R)
+        return adc * 1.604f - 89.163f;
+    else if(servo == SERVO_EAR_L)
+        return adc * 1.43534f + 3.56723f;
+    else if(servo == SERVO_EYE_L_NEAR)
+        return adc * (1.42778f + 1.39f) * 0.5f + (14.043f - 0.9757f) * 0.5f;
+    else if(servo == SERVO_EYE_L_FAR)
+        return adc * (1.409092f + 1.4254167f) * 0.5f + (10.18966f - 8.4515f) * 0.5f;
+    else if(servo == SERVO_EYE_R_FAR)
+        return adc * (1.3478f + 1.52054f) * 0.5f + (24.697f - 53.6587f) * 0.5f;
+    else if(servo == SERVO_EYE_R_NEAR)
+        return adc * (1.339815f + 1.3266f) * 0.5f + (27.574f + 6.81544f) * 0.5f;
+
+    return 0;
+}
 
 uint32_t map(int32_t x, int32_t in_min, int32_t in_max, int32_t out_min, int32_t out_max)
 {
@@ -72,9 +93,11 @@ bool servo_set_smooth_and_off(uint8_t servo, uint32_t pos_end, uint32_t delay_ms
 {
     if(servo >= SERVO_COUNT) return true;
 
-    servo_move[servo].pos_start = servo_move[servo].pos_last;
+    uint16_t pos_start = get_approximation(servo, adc_get_raw(servo));
+    servo_move[servo].pos_start = pos_start != 0 ? pos_start : servo_move[servo].pos_last;
     servo_move[servo].pos_end = pos_end;
     servo_move[servo].time_start = HAL_GetTick();
+    servo_move[servo].time_print_state = servo_move[servo].time_start + 250;
     servo_move[servo].time_end = servo_move[servo].time_start + delay_ms;
     servo_move[servo].mode = MODE_MOVE;
 
@@ -170,6 +193,17 @@ void servo_poll(uint32_t diff_ms)
                                                                           (int32_t)(servo_move[i].time_end - servo_move[i].time_start);
                     servo_move[i].pos_last = pos;
                     servo_set(i, pos);
+                    if(servo_move[i].time_print_state < time_now)
+                    {
+                        debug_rf("%d>%d|%d|%d|%d|%d|%d", pos,
+                                 adc_get_raw(ADC_SAIN_0),
+                                 adc_get_raw(ADC_SAIN_1),
+                                 adc_get_raw(ADC_SAIN_2),
+                                 adc_get_raw(ADC_SAIN_3),
+                                 adc_get_raw(ADC_SAIN_4),
+                                 adc_get_raw(ADC_SAIN_5));
+                        servo_move[i].time_print_state = time_now + 180;
+                    }
                 }
             }
             else if(servo_move[i].mode == MODE_DELAY_BEFORE_OFF)

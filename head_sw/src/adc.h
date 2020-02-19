@@ -3,6 +3,21 @@
 
 #include <stdint.h>
 
+enum
+{
+    ADC_SAIN_0,
+    ADC_SAIN_1,
+    ADC_SAIN_2,
+    ADC_SAIN_3,
+    ADC_SAIN_4,
+    ADC_SAIN_5,
+    ADC_SAIN_VBAT,
+    ADC_SAIN_NTC0,
+    ADC_SAIN_RSSI,
+
+    ADC_CH_NUM
+};
+
 void adc_init(void);
 void adc_print(void);
 

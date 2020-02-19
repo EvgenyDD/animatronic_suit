@@ -15,21 +15,6 @@ static const float adc_max_cnt = 4095.0f;
 #define NTC_RES_LO_SIDE(adc_val) ((adc_val * 10000.0f) / (adc_max_cnt - adc_val))
 #define NTC_TEMP_LO_SIDE(adc_raw, coef) (1.0f / ((logf(NTC_RES_LO_SIDE(adc_raw) / 47000.0f) / coef) + (1.0 / 298.15f)) - 273.15f)
 
-enum
-{
-    ADC_SAIN_0,
-    ADC_SAIN_1,
-    ADC_SAIN_2,
-    ADC_SAIN_3,
-    ADC_SAIN_4,
-    ADC_SAIN_5,
-    ADC_SAIN_VBAT,
-    ADC_SAIN_NTC0,
-    ADC_SAIN_RSSI,
-
-    ADC_CH_NUM
-};
-
 float adc_logic_get_temp(void)
 {
     return NTC_TEMP_LO_SIDE(adc_get_raw(ADC_SAIN_NTC0), NTC_COEF);
