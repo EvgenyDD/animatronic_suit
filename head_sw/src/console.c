@@ -64,6 +64,19 @@ void debug_parse(char *s)
         else
             debug_rf("servo: fail Input\n");
     }
+    else if(strcmp_(s, "sservo"))
+    {
+        unsigned int servo = 0, val = 0, delay_ms = 0;
+
+        int c = sscanf(&s[find_space(s)], "%u %u %u", &servo, &val, &delay_ms);
+        if(c == 3)
+        {
+            debug_rf("Set Servo Smth %d to %d %d ms\n", servo, val, delay_ms);
+            servo_set_smooth_and_off(servo, val, delay_ms);
+        }
+        else
+            debug_rf("Servos: fail Input\n");
+    }
     else if(strcmp_(s, "fan"))
     {
         unsigned int fan = 0, val = 0;

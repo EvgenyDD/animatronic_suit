@@ -80,10 +80,10 @@ uint32_t stm32_sw_crc32_by_byte(uint8_t *pBuffer, uint32_t NumOfByte)
 
     while(NumOfDWord--)
     {
-        uint32_t data = ((uint8_t)pBuffer[i+3] << 24) |
-                ((uint8_t)pBuffer[i+2] << 16) |
-                ((uint8_t)pBuffer[i+1] << 8) |
-                ((uint8_t)pBuffer[i+0]);
+        uint32_t data = (static_cast<uint8_t>(pBuffer[i+3U]) << 24U) |
+                (static_cast<uint8_t>(pBuffer[i+2U]) << 16U) |
+                (static_cast<uint8_t>(pBuffer[i+1U]) << 8U) |
+                static_cast<uint32_t>(pBuffer[i+0U]);
         i+=4;
 
         //qDebug() << "i=" << i << "  data = " << QString::number(data, 16);

@@ -1,6 +1,7 @@
 #include "adc.h"
 #include "debounce.h"
 #include "debug.h"
+#include "fan.h"
 #include "flash_regions.h"
 #include "flasher_hal.h"
 #include "hb_tracker.h"
@@ -8,6 +9,7 @@
 #include "main.h"
 #include "power.h"
 #include "serial_suit_protocol.h"
+#include "servo.h"
 
 #include <string.h>
 
@@ -26,8 +28,6 @@ extern UART_HandleTypeDef huart3;
 
 extern CRC_HandleTypeDef hcrc;
 extern RNG_HandleTypeDef hrng;
-
-extern uint32_t rx_cnt;
 
 #warning "Add WDT"
 
@@ -72,6 +72,7 @@ void init(void)
     FLASH_ClearFlag(FLASH_FLAG_EOP | FLASH_FLAG_OPERR | FLASH_FLAG_WRPERR | FLASH_FLAG_PGAERR | FLASH_FLAG_PGPERR | FLASH_FLAG_PGSERR);
 
     adc_init();
+    servo_init();
 
     pwr_enable();
 
@@ -109,8 +110,10 @@ void loop(void)
     {
         static uint32_t master_to = 0;
 
-        if(hb_tracker_is_timeout(hbt_ctrl)) master_to += diff_ms;
-        else master_to = 0;
+        if(hb_tracker_is_timeout(hbt_ctrl))
+            master_to += diff_ms;
+        else
+            master_to = 0;
 
         if(master_to > MASTER_TO_MS_SHUTDOWN) pwr_disable();
     }
@@ -119,16 +122,16 @@ void loop(void)
     {
         if(adc_logic_get_vbat() < 3.1f * 2.f)
         {
-            led_set(0,200);
-            led_set(1,0);
-            led_set(2,0);
+            led_set(0, 200);
+            led_set(1, 0);
+            led_set(2, 0);
 
-            for(uint32_t i=0; i<3; i++)
+            for(uint32_t i = 0; i < 3; i++)
             {
-                led_set(0,0);
+                led_set(0, 0);
                 HAL_Delay(500);
-                
-                led_set(0,200);
+
+                led_set(0, 200);
                 HAL_Delay(500);
             }
             pwr_disable();
@@ -136,6 +139,8 @@ void loop(void)
     }
 
     air_protocol_poll();
+
+    servo_poll(diff_ms);
 
     static uint32_t hbtt = 0;
     if(hbtt < HAL_GetTick())
@@ -208,15 +213,42 @@ void process_data(uint8_t sender_node_id, const volatile uint8_t *data, uint8_t 
             // break;
 
         case RFM_NET_CMD_LIGHT:
-        {
             if(data_len == 4)
             {
                 led_set_gamma(0, data[1]);
                 led_set_gamma(1, data[2]);
                 led_set_gamma(2, data[3]);
             }
-        }
-        break;
+            break;
+
+        case RFM_NET_CMD_FAN:
+            if(data_len == 3)
+            {
+                fan_set(0, data[1]);
+                fan_set(1, data[2]);
+            }
+            break;
+
+        case RFM_NET_CMD_SERVO_RAW:
+            if(data_len == 1 + SERVO_COUNT * 2) // all servos
+            {
+                for(uint32_t i = 0; i < SERVO_COUNT; i++)
+                {
+                    uint16_t signal;
+                    memcpy_volatile(&signal, &data[1U + 2U * i], 2);
+                    servo_set(i, signal);
+                }
+            }
+            else if(data_len == 1 + 1 /* selector */ + 2 /* data */) // single servo
+            {
+                if(data[1] < SERVO_COUNT)
+                {
+                    uint16_t signal;
+                    memcpy_volatile(&signal, &data[2], 2);
+                    servo_set(data[1], signal);
+                }
+            }
+            break;
 
         case RFM_NET_CMD_REBOOT:
             HAL_NVIC_SystemReset();

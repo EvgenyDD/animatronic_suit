@@ -12,19 +12,19 @@
 
 #include <string.h>
 
+#define CYCLIC_OP(num, op) {for(uint32_t i=0; i<num; i++) op;}
+
 extern ADC_HandleTypeDef hadc1;
 extern DMA_HandleTypeDef hdma_adc1;
 
 extern CRC_HandleTypeDef hcrc;
 extern RNG_HandleTypeDef hrng;
 
-extern uint32_t rx_cnt;
-
-#warning "Add WDT"
-
 hbt_node_t *hbt_head;
 
 bool to_from_head = true;
+
+bool g_charge_en = true;
 
 uint32_t get_random(void) { return HAL_RNG_GetRandomNumber(&hrng); }
 
@@ -37,7 +37,9 @@ static bool btn_pwr_off_long_press = false;
 
 void init(void)
 {
-    for(uint32_t i=0; i<4; i++) for(uint32_t k=0; k<3; k++) debounce_init(&btn[i][k], 250, 800);
+    for(uint32_t i = 0; i < 4; i++)
+        for(uint32_t k = 0; k < 3; k++)
+            debounce_init(&btn[i][k], 250, 800);
 
     debug_init();
     adc_init();
@@ -61,7 +63,7 @@ void loop(void)
                            ? 0xFFFFFFFF + time_ms_now - time_ms_prev
                            : time_ms_now - time_ms_prev;
     time_ms_prev = time_ms_now;
-    
+
     static uint32_t prev_tick = 0;
 
     if(prev_tick < HAL_GetTick())
@@ -88,10 +90,10 @@ void loop(void)
             request_ack = !(sendSize % 3); //request ACK every 3rd xmission
         }
     }
-    
-    if(btn_pwr_off_long_press)LED0_GPIO_Port->ODR |= LED0_Pin;
 
-    // btn 
+    if(btn_pwr_off_long_press) LED0_GPIO_Port->ODR |= LED0_Pin;
+
+    // btn
     {
         debounce_cb(&btn[0][0], B0_WKUP_GPIO_Port->IDR & B0_WKUP_Pin, diff_ms);
         debounce_cb(&btn[0][1], !(B1_GPIO_Port->IDR & B1_Pin), diff_ms);
@@ -116,9 +118,15 @@ void loop(void)
         if(btn[0][0].unpressed_shot && btn_pwr_off_long_press) pwr_sleep();
     }
 
-    for(uint32_t i=0; i<4; i++) for(uint32_t k=0; k<3; k++) if(btn[i][k].pressed_shot) debug(DBG_INFO "Btn %d %d pressed\n", i, k);
-    for(uint32_t i=0; i<4; i++) for(uint32_t k=0; k<3; k++) if(btn[i][k].pressed_shot_long) debug(DBG_INFO "Btn %d %d pressed long\n", i, k);
-    for(uint32_t i=0; i<4; i++) for(uint32_t k=0; k<3; k++) if(btn[i][k].unpressed_shot) debug(DBG_INFO "Btn %d %d unpressed\n", i, k);
+    for(uint32_t i = 0; i < 4; i++)
+        for(uint32_t k = 0; k < 3; k++)
+            if(btn[i][k].pressed_shot) debug(DBG_INFO "Btn %d %d pressed\n", i, k);
+    for(uint32_t i = 0; i < 4; i++)
+        for(uint32_t k = 0; k < 3; k++)
+            if(btn[i][k].pressed_shot_long) debug(DBG_INFO "Btn %d %d pressed long\n", i, k);
+    for(uint32_t i = 0; i < 4; i++)
+        for(uint32_t k = 0; k < 3; k++)
+            if(btn[i][k].unpressed_shot) debug(DBG_INFO "Btn %d %d unpressed\n", i, k);
 
     air_protocol_poll();
 
@@ -147,14 +155,14 @@ void loop(void)
         }
     }
 
-    if(CHRG_STS_GPIO_Port->IDR & CHRG_STS_Pin)
-        {
-            LED4_GPIO_Port->ODR |= LED4_Pin;
-        }
-        else
-        {
-            LED4_GPIO_Port->ODR &= ~LED4_Pin;
-        }
+    // if(CHRG_STS_GPIO_Port->IDR & CHRG_STS_Pin)
+    //     {
+    //         LED4_GPIO_Port->ODR |= LED4_Pin;
+    //     }
+    //     else
+    //     {
+    //         LED4_GPIO_Port->ODR &= ~LED4_Pin;
+    //     }
 
     static uint32_t ctrl_hb = 0;
     if(ctrl_hb < HAL_GetTick())
@@ -180,13 +188,80 @@ void loop(void)
     if(prev < HAL_GetTick())
     {
         prev = HAL_GetTick() + 8000;
-        CHRG_EN_GPIO_Port->ODR &= ~CHRG_EN_Pin;
-        HAL_Delay(100);
+        CHRG_EN_GPIO_Port->ODR &= (uint32_t)~CHRG_EN_Pin;
+        // HAL_Delay(100);
+        #warning "HERE"
         debug(DBG_INFO "STAT: %d | %.3fV\n", cnt >> 3, adc_drv_get_vbat());
-        CHRG_EN_GPIO_Port->ODR |= CHRG_EN_Pin;
+        if(g_charge_en)
+            CHRG_EN_GPIO_Port->ODR |= CHRG_EN_Pin;
         cnt = 0;
     }
     cnt++;
+
+    // button handler
+    {
+        if(btn[0][0].pressed_shot)
+        {
+            // disable all servos
+            uint8_t data[] = {RFM_NET_CMD_SERVO_RAW, 0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+            CYCLIC_OP(3, air_protocol_send_async(iterator_head, data, sizeof(data)));
+        }
+
+        if(btn[0][1].pressed_shot)
+        {
+            static const uint8_t fan_lo[] = {0, 60, 80, 95};
+            static const uint8_t fan_hi[] = {0, 0, 70, 95};
+            static uint32_t mode = 0;
+            mode++;
+            if(mode >= sizeof(fan_lo) / sizeof(fan_lo[0])) mode = 0;
+            uint8_t data[] = {RFM_NET_CMD_FAN, 0, 0};
+            data[1] = fan_hi[mode];
+            data[2] = fan_lo[mode];
+            CYCLIC_OP(3, air_protocol_send_async(iterator_head, data, sizeof(data)));
+        }
+
+        if(btn[1][1].pressed_shot)
+        {
+            static const uint8_t leds[3][4] = {
+                {
+                    0,
+                    120,
+                    0,
+                    0,
+                },
+                {
+                    0,
+                    0,
+                    120,
+                    0,
+                },
+                {
+                    0,
+                    0,
+                    0,
+                    120,
+                }};
+            static uint32_t mode = 0;
+            mode++;
+            if(mode >= 4) mode = 0;
+            uint8_t data[] = {RFM_NET_CMD_LIGHT, 0, 0, 0};
+            data[1] = leds[0][mode];
+            data[2] = leds[1][mode];
+            data[3] = leds[2][mode];
+            CYCLIC_OP(3, air_protocol_send_async(iterator_head, data, sizeof(data)));
+        }
+
+        if(btn[2][1].pressed_shot)
+        {
+            static const uint16_t servo_tongue[] = {320, 470, 620};
+            static uint32_t mode = 0;
+            mode++;
+            if(mode >= sizeof(servo_tongue) / sizeof(servo_tongue[0])) mode = 0;
+            uint8_t data[] = {RFM_NET_CMD_SERVO_RAW, 6, 0, 0};
+            memcpy(&data[2], &servo_tongue[mode], 2);
+            CYCLIC_OP(3, air_protocol_send_async(iterator_head, data, sizeof(data)));
+        }
+    }
 }
 
 inline static void memcpy_volatile(void *dst, const volatile void *src, size_t size)
@@ -217,7 +292,7 @@ void process_data(uint8_t sender_node_id, const volatile uint8_t *data, uint8_t 
             {
                 dbg_buffer[data_len - 1] = '\0';
             }
-            debug("[TAIL]\t%s\n", dbg_buffer);
+            debug("[***]\t%s\n", dbg_buffer);
             // for(uint8_t i = 1; i < data_len; i++)
             // debug("%c", data[i]);
             // if(data[data_len - 1] != '\n') debug("\n");
@@ -244,9 +319,9 @@ void process_data(uint8_t sender_node_id, const volatile uint8_t *data, uint8_t 
                 memcpy_volatile(&vbat, (data + 1), 4);
                 memcpy_volatile(&temp, (data + 1 + 4), 4);
                 debug(DBG_INFO "HD STS: %.2fV (%.1f%%) | t %.1f\n",
-                    vbat,
-                    map_float(vbat, 3.1f * 2.f, 4.18f * 2.f, 0, 100.f),
-                    temp);
+                      vbat,
+                      map_float(vbat, 3.1f * 2.f, 4.18f * 2.f, 0, 100.f),
+                      temp);
             }
             break;
 

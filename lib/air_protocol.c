@@ -1,3 +1,33 @@
+/**
+ * AIR Protocol
+ * Master Algorithm:
+ *      for(slaves)
+ *      {
+ *           SACK slave
+ *           if(SACK failed) continue;
+ *           TX data to slave (if available)
+ *           SEND slave SLS (Slave Listen Start)
+ *           Listen to slave (with timeout)
+ *           Wait until SLE (Slave Listen End) received from slave
+ *      }
+ *      if(no data to TX) 
+ *      {
+ *          wait idle timeout
+ *          if(data available)
+ *          {
+ *              get out from idle timeout
+ *          }
+ *      }
+ * 
+ * Slave Algorithm:
+ *      RX data
+ *      if(SLS received with slave ID)
+ *      {
+ *          TX data to Master (if available)
+ *          Send SLE to Master
+ *      }
+ * 
+ */
 #include "air_protocol.h"
 #include "debug.h"
 #include "hb_tracker.h"

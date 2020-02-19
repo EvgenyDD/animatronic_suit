@@ -11,8 +11,6 @@
 extern const uint8_t iterator_ctrl;
 extern UART_HandleTypeDef huart3;
 
-uint32_t rx_cnt = 0;
-
 #define CON_OUT_BUF_SZ 512
 #define CON_IN_BUF_SZ 512
 

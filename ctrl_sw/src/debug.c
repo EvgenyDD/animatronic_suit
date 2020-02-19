@@ -12,8 +12,6 @@
 extern UART_HandleTypeDef huart1;
 extern USBD_HandleTypeDef hUsbDeviceFS;
 
-uint32_t rx_cnt = 0;
-
 #define CON_OUT_BUF_SZ 512
 #define CON_IN_BUF_SZ 512
 

@@ -17,7 +17,7 @@ MainWindow::MainWindow(std::queue_threadsafe<char> &q, Flasher &flasher, QWidget
     if(f.open_r() == false)
     {
         auto b = f.read();
-        auto pieces = StringHelper::split(std::string((char*)&b[0], b.size()), '\n');
+        auto pieces = StringHelper::split(std::string(reinterpret_cast<char*>(&b[0]), b.size()), '\n');
         if(pieces.size() > 0) ui->lineedit_fw_path_ctrl->setText(QString::fromStdString(pieces[0]+"\0"));
         if(pieces.size() > 1) ui->lineedit_fw_path_head->setText(QString::fromStdString(pieces[1]+"\0"));
         if(pieces.size() > 2) ui->lineedit_fw_path_tail->setText(QString::fromStdString(pieces[2]+"\0"));

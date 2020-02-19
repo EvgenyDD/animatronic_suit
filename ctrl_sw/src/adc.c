@@ -51,4 +51,4 @@ void adc_drv_conv_complete_full(void)
     // filter_values();
 }
 
-float adc_drv_get_vbat(void) {return (float)adc_get_raw(ADC_SAIN_VBAT)/4095.f*3.3f*(1.f+1000.f/470.f);}
+float adc_drv_get_vbat(void) { return (float)adc_get_raw(ADC_SAIN_VBAT) / 4095.f * 3.3f * (1.f + 1000.f / 470.f) * 1.02202643f; }

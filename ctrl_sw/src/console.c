@@ -4,8 +4,11 @@
 
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
+
+extern bool g_charge_en;
 
 static int strcmp_(char *s1, char *s2)
 {
@@ -46,6 +49,18 @@ void debug_parse(char *s)
         // servo_print();
         adc_print();
         // debug("Btn: %d\n", BTN_SNS_GPIO_Port->IDR & BTN_SNS_Pin ? 1 : 0);
+    }
+    else if(strcmp_(s, "chrg_en"))
+    {
+        g_charge_en = true;
+        CHRG_EN_GPIO_Port->ODR |= CHRG_EN_Pin;
+        debug("OK! Charge enabled");
+    }
+    else if(strcmp_(s, "chrg_dis"))
+    {
+        g_charge_en = false;
+        CHRG_EN_GPIO_Port->ODR &= ~CHRG_EN_Pin;
+        debug("OK! Charge disabled");
     }
     // else if(strcmp_(s, "servo"))
     // {
