@@ -14,4 +14,6 @@ inline void pwr_sleep(void) {
                     HAL_PWR_EnableWakeUpPin(PWR_WAKEUP_PIN1);
                     HAL_PWR_EnterSTANDBYMode();}
 
+inline bool pwr_is_charging(void) {return CHRG_STS_GPIO_Port->IDR & CHRG_STS_Pin;}
+
 #endif // POWER_H

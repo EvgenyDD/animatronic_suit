@@ -16,9 +16,9 @@
 
 extern ADC_HandleTypeDef hadc1;
 extern DMA_HandleTypeDef hdma_adc1;
-
 extern CRC_HandleTypeDef hcrc;
 extern RNG_HandleTypeDef hrng;
+extern USBD_HandleTypeDef hUsbDeviceFS;
 
 hbt_node_t *hbt_head;
 
@@ -111,7 +111,18 @@ void loop(void)
         debounce_cb(&btn[3][1], !(B10_GPIO_Port->IDR & B10_Pin), diff_ms);
         debounce_cb(&btn[3][2], !(B11_GPIO_Port->IDR & B11_Pin), diff_ms);
     }
+    
+    // self-off control
+    static uint32_t to_without_press = 0;
+    to_without_press += diff_ms;
+    for(uint32_t i=0; i<4; i++)for(uint32_t k=0; k<3; k++) if(btn[i][k].pressed) to_without_press = 0;
+    if(hb_tracker_is_timeout(hbt_head) == false) to_without_press = 0;
+    // if(pwr_is_charging()) to_without_press = 0; // don't work ok
+    if(hUsbDeviceFS.dev_state == USBD_STATE_CONFIGURED) to_without_press = 0;
 
+    if(to_without_press > 15000 ||
+    adc_drv_get_vbat() < 3.2f) pwr_sleep();
+    
     // off button
     {
         if(btn[0][0].pressed_shot_long) btn_pwr_off_long_press = true;
@@ -144,25 +155,16 @@ void loop(void)
         {
             LED7_GPIO_Port->ODR ^= LED7_Pin;
         }
+    }
 
-        if(to_from_head)
+    if(hUsbDeviceFS.dev_state == USBD_STATE_CONFIGURED)
         {
-            LED6_GPIO_Port->ODR |= LED6_Pin;
+            LED4_GPIO_Port->ODR |= LED4_Pin;
         }
         else
         {
-            LED6_GPIO_Port->ODR ^= LED6_Pin;
+            LED4_GPIO_Port->ODR &= (uint32_t)~LED4_Pin;
         }
-    }
-
-    // if(CHRG_STS_GPIO_Port->IDR & CHRG_STS_Pin)
-    //     {
-    //         LED4_GPIO_Port->ODR |= LED4_Pin;
-    //     }
-    //     else
-    //     {
-    //         LED4_GPIO_Port->ODR &= ~LED4_Pin;
-    //     }
 
     static uint32_t ctrl_hb = 0;
     if(ctrl_hb < HAL_GetTick())
@@ -190,7 +192,7 @@ void loop(void)
         prev = HAL_GetTick() + 8000;
         CHRG_EN_GPIO_Port->ODR &= (uint32_t)~CHRG_EN_Pin;
         // HAL_Delay(100);
-        #warning "HERE"
+        #warning "HERE^^^"
         debug(DBG_INFO "STAT: %d | %.3fV\n", cnt >> 3, adc_drv_get_vbat());
         if(g_charge_en)
             CHRG_EN_GPIO_Port->ODR |= CHRG_EN_Pin;

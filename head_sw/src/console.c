@@ -77,6 +77,48 @@ void debug_parse(char *s)
         else
             debug_rf("Servos: fail Input\n");
     }
+    else if(strcmp_(s, "ssservo"))
+    {
+        unsigned int servo[2], val[2], delay_ms = 0;
+
+        int c = sscanf(&s[find_space(s)], "%u %u %u %u %u", &servo[0], &val[0], &servo[1], &val[1], &delay_ms);
+        if(c == 5)
+        {
+            debug_rf("Smth2 %d to %d | %d to %d\t%d ms\n", servo[0], val[0], servo[1], val[1], delay_ms);
+            servo_set_smooth_and_off(servo[0], val[0], delay_ms);
+            servo_set_smooth_and_off(servo[1], val[1], delay_ms);
+        }
+        else
+            debug_rf("Servos2: fail Input %d\n", c);
+    }
+    else if(strcmp_(s, "sssservo"))
+    {
+        /*
+        top
+        sssservo 0 500 1 560 4 420 5 330 800
+        bottom
+        sssservo 0 340 1 380 4 600 5 500 800
+        АГАААА
+        sssservo 0 500 1 420 4 550 5 330 800
+        **
+        sssservo 0 500 1 330 4 620 5 330 800
+        *
+        sssservo 0 440 1 330 4 640 5 400 800
+        */
+        unsigned int servo[4], val[4], delay_ms = 0;
+
+        int c = sscanf(&s[find_space(s)], "%u %u %u %u %u %u %u %u %u", &servo[0], &val[0], &servo[1], &val[1], &servo[2], &val[2], &servo[3], &val[3], &delay_ms);
+        if(c == 9)
+        {
+            debug_rf("Smth2 %d to %d | %d to %d | %d to %d | %d to %d\t%d ms\n", servo[0], val[0], servo[1], val[1], servo[2], val[2], servo[3], val[3], delay_ms);
+            servo_set_smooth_and_off(servo[0], val[0], delay_ms);
+            servo_set_smooth_and_off(servo[1], val[1], delay_ms);
+            servo_set_smooth_and_off(servo[2], val[2], delay_ms);
+            servo_set_smooth_and_off(servo[3], val[3], delay_ms);
+        }
+        else
+            debug_rf("Servos4: fail Input %d\n", c);
+    }
     else if(strcmp_(s, "fan"))
     {
         unsigned int fan = 0, val = 0;

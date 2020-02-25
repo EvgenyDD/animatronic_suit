@@ -183,7 +183,7 @@ void servo_poll(uint32_t diff_ms)
                 {
                     servo_set(i, servo_move[i].pos_end);
                     servo_move[i].pos_last = servo_move[i].pos_end;
-                    servo_move[i].time_end += 500; // delay before off
+                    servo_move[i].time_end += 50; // delay before off
                     servo_move[i].mode = MODE_DELAY_BEFORE_OFF;
                 }
                 else
