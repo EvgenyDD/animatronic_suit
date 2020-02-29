@@ -250,6 +250,24 @@ void process_data(uint8_t sender_node_id, const volatile uint8_t *data, uint8_t 
             }
             break;
 
+        case RFM_NET_CMD_SERVO_SMOOTH:
+            if(data_len >= 1 + 2 /* time */ + 1 /* selector */ + 2 /* data */)
+            {
+                if(((data_len - 3) % 3) == 0)
+                {
+                    uint16_t time;
+                    memcpy_volatile(&time, &data[1], 2);
+                    for(uint32_t i = 3; i < data_len;)
+                    {
+                        uint16_t pos;
+                        memcpy_volatile(&pos, &data[i + 1], 2);
+                        servo_set_smooth_and_off(data[i], pos, time);
+                        i += 3;
+                    }
+                }
+            }
+            break;
+
         case RFM_NET_CMD_REBOOT:
             HAL_NVIC_SystemReset();
             break;

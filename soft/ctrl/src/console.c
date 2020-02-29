@@ -59,7 +59,7 @@ void debug_parse(char *s)
     else if(strcmp_(s, "chrg_dis"))
     {
         g_charge_en = false;
-        CHRG_EN_GPIO_Port->ODR &= ~CHRG_EN_Pin;
+        CHRG_EN_GPIO_Port->ODR &= (uint32_t)~CHRG_EN_Pin;
         debug("OK! Charge disabled");
     }
     // else if(strcmp_(s, "servo"))

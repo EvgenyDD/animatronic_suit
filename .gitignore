@@ -4,9 +4,14 @@
 */__Previews/*
 */build/*
 build/*
+*.exe
+soft/ui/debug/*
 */build-*
 */Debug/
 *.Debug
+moc_*
+ctrl
+head
 *.Release
 ui_*
 ui/Makefile
@@ -29,4 +34,4 @@ ui/Makefile
 logs
 *.ini
 ctrl_sw/bootloader/build/*
-ui/asuit_ui.pro.user.ffec760
+ui/asuit_ui.pro.user*
