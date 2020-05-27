@@ -206,6 +206,29 @@ void loop(void)
     }
     cnt++;
 
+    static int ear_move_step = -1;
+    static uint32_t ear_move_delay = 0;
+
+    if(ear_move_step != -1 && ear_move_delay < HAL_GetTick())
+    {
+        static uint8_t data_ear_smooth_servo[] = {RFM_NET_CMD_SERVO_SMOOTH, 0, 0,
+                                                  2 /*0*/, 0, 0,
+                                                  3 /*1*/, 0, 0};
+        uint16_t time = 300;
+        memcpy(&data_ear_smooth_servo[1], &time, 2);
+        uint16_t pos[2][2] = {
+            {750, 300},
+            {350, 750},
+        };
+
+        for(uint32_t i = 0; i < 2; i++)
+            memcpy(&data_ear_smooth_servo[3 + (3 * i + 1)], &pos[ear_move_step % 2][i], 2);
+        air_protocol_send_async(iterator_head, data_ear_smooth_servo, sizeof(data_ear_smooth_servo));
+
+        if(++ear_move_step >= 4) ear_move_step = -1;
+        ear_move_delay = HAL_GetTick() + 400;
+    }
+
     // button handler
     {
         if(btn[0][0].pressed_shot)
@@ -213,6 +236,12 @@ void loop(void)
             // disable all servos
             uint8_t data[] = {RFM_NET_CMD_SERVO_RAW, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
             CYCLIC_OP(3, air_protocol_send_async(iterator_head, data, sizeof(data)));
+        }
+
+        if(btn[1][0].pressed_shot)
+        {
+            ear_move_step = 0;
+            ear_move_delay = 0;
         }
 
         if(btn[0][1].pressed_shot)
@@ -261,7 +290,7 @@ void loop(void)
 
         if(btn[2][1].pressed_shot)
         {
-            static const uint16_t servo_tongue[] = {320, 470, 620};
+            static const uint16_t servo_tongue[] = {320, /*470,*/ 620};
             static uint32_t mode = 0;
             mode++;
             if(mode >= sizeof(servo_tongue) / sizeof(servo_tongue[0])) mode = 0;
@@ -270,11 +299,11 @@ void loop(void)
             CYCLIC_OP(3, air_protocol_send_async(iterator_head, data, sizeof(data)));
         }
 
-        static uint8_t data_smooth_servo[1 + 2 + 3 * 4] = {RFM_NET_CMD_SERVO_SMOOTH, 0, 0,
-                                                           0 /*0*/, 0, 0,
-                                                           1 /*1*/, 0, 0,
-                                                           4 /*4*/, 0, 0,
-                                                           5 /*5*/, 0, 0};
+        static uint8_t data_smooth_servo[] = {RFM_NET_CMD_SERVO_SMOOTH, 0, 0,
+                                              0 /*0*/, 0, 0,
+                                              1 /*1*/, 0, 0,
+                                              4 /*4*/, 0, 0,
+                                              5 /*5*/, 0, 0};
         if(btn[0][2].pressed_shot)
         {
             uint16_t time = 800;
