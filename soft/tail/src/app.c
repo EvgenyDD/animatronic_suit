@@ -42,7 +42,7 @@ const uint8_t iterator_ctrl = 0;
 
 // static button_ctrl_t btn_pwr;
 
-bool start_servo = false;
+bool start_servo = false, start_servo2 = false;
 
 pid_ctrl_t srv0;
 
@@ -88,6 +88,8 @@ void init(void)
 
     pwr_enable();
 
+    mc_set_pwm_1(1, 200);
+
     // hbt_ctrl = hb_tracker_init(RFM_NET_ID_CTRL, 700 /* 2x HB + 100 ms*/);
 
     // air_protocol_init();
@@ -125,12 +127,17 @@ void loop(void)
 
     if(start_servo)
     {
-        mc_set_pwm(0, true, 24000);
-        // mc_set_pwm(1, true, 24000);
+        mc_set_pwm_0(true, 400);
         HAL_Delay(800);
-        mc_set_pwm(0, true, 0);
-        // mc_set_pwm(1, true, 0);
+        mc_set_pwm_0(true, 0);
         start_servo = false;
+    }
+    if(start_servo2)
+    {
+        mc_set_pwm_1(true, 400);
+        HAL_Delay(800);
+        mc_set_pwm_1(true, 0);
+        start_servo2 = false;
     }
 
     // if(diff_ms)
@@ -150,7 +157,7 @@ void loop(void)
             srv0.out = 0;
             srv0.i_acc = 0;
         }
-        mc_set_pwm(0, srv0.out >= 0, (uint32_t)(fabsf(srv0.out) * 1000.0f));
+        mc_set_pwm_0(srv0.out >= 0, (uint32_t)(fabsf(srv0.out) * 1000.0f));
     }
 
     // // btn

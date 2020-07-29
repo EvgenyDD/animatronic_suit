@@ -14,7 +14,7 @@
 #include "pid.h"
 
 extern pid_ctrl_t srv0;
-extern bool start_servo;
+extern bool start_servo, start_servo2;
 
 static int strcmp_(char *s1, char *s2)
 {
@@ -54,7 +54,7 @@ void debug_parse(char *s)
         // }
 
         // adc_print();
-        debug("ADC: %d\n", adc_get_raw(0));
+        debug("ADC: %d %d\n", adc_get_raw(0), adc_get_raw(1));
         debug("err: %.3f\n", srv0.prev_error);
         debug_rf("out %.5f\n", srv0.out);
         debug_rf("max %d\n", srv0.max);
@@ -62,6 +62,20 @@ void debug_parse(char *s)
     else if(strcmp_(s, "servo"))
     {
         start_servo = true;
+        // unsigned int servo = 0, val = 0;
+
+        // int c = sscanf(&s[find_space(s)], "%u %u", &servo, &val);
+        // if(c == 2)
+        // {
+        //     debug_rf("Set Servo %d to %d\n", servo, val);
+        //     // servo_set(servo, val);
+        // }
+        // else
+        //     debug_rf("servo: fail Input\n");
+    }
+    else if(strcmp_(s, "fervo"))
+    {
+        start_servo2 = true;
         // unsigned int servo = 0, val = 0;
 
         // int c = sscanf(&s[find_space(s)], "%u %u", &servo, &val);
@@ -101,7 +115,7 @@ void debug_parse(char *s)
         else
             debug_rf("Servos: fail Input\n");
     }
-        else if(strcmp_(s, "d"))
+    else if(strcmp_(s, "d"))
     {
         unsigned int val = 0;
 
@@ -150,61 +164,29 @@ void debug_parse(char *s)
         else
             debug_rf("Servos: fail Input\n");
     }
-    else if(strcmp_(s, "sssservo"))
+    else if(strcmp_(s, "1+"))
     {
-        /*
-        top
-        sssservo 0 500 1 560 4 420 5 330 800
-        bottom
-        sssservo 0 340 1 380 4 600 5 500 800
-        АГАААА
-        sssservo 0 500 1 420 4 550 5 330 800
-        **
-        sssservo 0 500 1 330 4 620 5 330 800
-        *
-        sssservo 0 440 1 330 4 640 5 400 800
-        */
-        unsigned int servo[4], val[4], delay_ms = 0;
-
-        int c = sscanf(&s[find_space(s)], "%u %u %u %u %u %u %u %u %u", &servo[0], &val[0], &servo[1], &val[1], &servo[2], &val[2], &servo[3], &val[3], &delay_ms);
-        if(c == 9)
-        {
-            debug_rf("Smth2 %d to %d | %d to %d | %d to %d | %d to %d\t%d ms\n", servo[0], val[0], servo[1], val[1], servo[2], val[2], servo[3], val[3], delay_ms);
-            // servo_set_smooth_and_off(servo[0], val[0], delay_ms);
-            // servo_set_smooth_and_off(servo[1], val[1], delay_ms);
-            // servo_set_smooth_and_off(servo[2], val[2], delay_ms);
-            // servo_set_smooth_and_off(servo[3], val[3], delay_ms);
-        }
-        else
-            debug_rf("Servos4: fail Input %d\n", c);
+        mc_set_pwm_0(1, 200);
+        HAL_Delay(400);
+        mc_set_pwm_0(1, 0);
     }
-    else if(strcmp_(s, "fan"))
+    else if(strcmp_(s, "1-"))
     {
-        unsigned int fan = 0, val = 0;
-
-        int c = sscanf(&s[find_space(s)], "%u %u", &fan, &val);
-        if(c == 2)
-        {
-            val = val % 100;
-            debug_rf("Set Fan %d to %d\n", fan, val);
-            fan_set(fan, val);
-        }
-        else
-            debug_rf("fan: fail Input\n");
+        mc_set_pwm_0(0, 200);
+        HAL_Delay(400);
+        mc_set_pwm_0(0, 0);
     }
-    else if(strcmp_(s, "led"))
+    else if(strcmp_(s, "0+"))
     {
-        unsigned int led = 0, val = 0;
-
-        int c = sscanf(&s[find_space(s)], "%u %u", &led, &val);
-        if(c == 2)
-        {
-            val = val % 100;
-            debug_rf("Set LED %d to %d\n", led, val);
-            led_set(led, val);
-        }
-        else
-            debug_rf("LED: fail Input\n");
+        mc_set_pwm_1(1, 200);
+        HAL_Delay(400);
+        mc_set_pwm_1(1, 0);
+    }
+    else if(strcmp_(s, "0-"))
+    {
+        mc_set_pwm_1(0, 200);
+        HAL_Delay(400);
+        mc_set_pwm_1(0, 0);
     }
     else
     {
