@@ -5,7 +5,7 @@
 #include <stdbool.h>
 #include <string.h>
 
-bool app_image_present = false, app_present = false, app_image_corrupted = false;
+bool app_image_present = false, app_present = false, app_image_not_empty = false;
 
 extern CRC_HandleTypeDef hcrc;
 
@@ -132,14 +132,14 @@ void init(void)
     app_present = app_end != ADDR_APP;
 
     app_image_end = seek_flash_start(ADDR_APP_IMAGE, ADDR_APP_IMAGE + LEN_APP_IMAGE - 1);
-    app_image_corrupted = app_image_end != ADDR_APP_IMAGE;
-    app_image_present = app_image_corrupted && *(uint32_t *)ADDR_APP_IMAGE != 0xFFFFFFFF;
+    app_image_not_empty = app_image_end != ADDR_APP_IMAGE;
+    app_image_present = app_image_not_empty && *(uint32_t *)ADDR_APP_IMAGE != 0xFFFFFFFF;
 
-    if(app_present == false && app_image_corrupted == false)
+    if(app_present == false && app_image_not_empty == false)
     {
         countdown_turn_off = 2000;
     }
-    else if(app_present && app_image_corrupted == false)
+    else if(app_present && app_image_not_empty == false)
     {
         if(*(uint32_t *)ADDR_APP_IMAGE != 0xFFFFFFFF)
         {
@@ -147,7 +147,7 @@ void init(void)
         }
         goto_app();
     }
-    else if(app_present && app_image_corrupted)
+    else if(app_present && app_image_not_empty)
     {
         bool equal = compare();
         if(equal == false && app_image_present)
@@ -161,7 +161,7 @@ void init(void)
         }
         goto_app();
     }
-    else if(app_present == false && app_image_corrupted)
+    else if(app_present == false && app_image_not_empty)
     {
         if(app_image_present)
         {
